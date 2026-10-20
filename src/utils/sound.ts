@@ -95,33 +95,49 @@ export function buildAnnouncementText(trip: AnyTrip, lang: Language): string {
 function findBestFemaleVoice(voices: SpeechSynthesisVoice[], lang: Language): SpeechSynthesisVoice | null {
   const targetPrefix = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
 
-  // Female voice name hints in different browsers/operating systems (Chrome, Android, Safari, Edge, Windows)
+  // Android Google TTS and browser female voice identifiers
+  // On Android, Google Arabic female voices are typically "ar-xa-x-a-local", "ar-xa-x-c-local", "ar-xa-x-d-local"
   const femaleKeywords = [
     'female', 'woman', 'zira', 'salma', 'meryem', 'yasmin', 'leila', 'amira', 'zeina', 'fatima', 'hoda',
-    'hortense', 'julie', 'celine', 'audrey', 'samantha', 'victoria', 'karen', 'moira', 'fiona', 'tessa'
+    'hortense', 'julie', 'celine', 'audrey', 'samantha', 'victoria', 'karen', 'moira', 'fiona', 'tessa',
+    'x-a', 'x-c', 'x-d', 'wavenet-a', 'wavenet-c'
   ];
 
-  const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(targetPrefix));
+  const langVoices = voices.filter((v) => {
+    const vLang = v.lang.toLowerCase().replace('_', '-');
+    return vLang.startsWith(targetPrefix);
+  });
 
   if (langVoices.length === 0) {
-    // If no voice for target language, fall back to any voice matching prefix
     return voices.find((v) => v.lang.toLowerCase().startsWith(targetPrefix)) || null;
   }
 
   // 1. Look for explicit female name or keyword
   const femaleVoice = langVoices.find((v) => {
-    const nameLower = v.name.toLowerCase();
+    const nameLower = (v.name + ' ' + v.voiceURI).toLowerCase();
     return femaleKeywords.some((kw) => nameLower.includes(kw));
   });
 
   if (femaleVoice) return femaleVoice;
 
-  // 2. Default to first matching language voice (on Android TTS, default Arabic voice is high quality female)
+  // 2. Default to first matching language voice
   return langVoices[0];
 }
 
+// Pre-warm voices on Android WebView
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  try {
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  } catch {}
+}
+
 /**
- * Plays the official 4-tone chime, followed immediately by the spoken female announcement
+ * Plays the official chime and speaks the official female station announcement
  */
 export function announceTripStationVoice(trip: AnyTrip, lang: Language): void {
   // 1. Play railway chime
@@ -129,43 +145,45 @@ export function announceTripStationVoice(trip: AnyTrip, lang: Language): void {
 
   // 2. Web Speech API Voice Announcement
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    console.warn('SpeechSynthesis is not supported on this device/browser');
     return;
   }
 
   try {
     const synth = window.speechSynthesis;
-    // Cancel any previous utterance
+    
+    // Critical for Android WebView: cancel previous and resume if paused
     synth.cancel();
+    if (synth.paused) {
+      synth.resume();
+    }
 
     const text = buildAnnouncementText(trip, lang);
     const utterance = new SpeechSynthesisUtterance(text);
 
-    const targetLangCode = lang === 'ar' ? 'ar-TN' : lang === 'fr' ? 'fr-FR' : 'en-US';
+    // Use standard regional codes that Android Google TTS supports:
+    // 'ar-SA' or 'ar' is universally supported on Android; 'ar-TN' is NOT included in Android Google TTS!
+    const targetLangCode = lang === 'ar' ? 'ar-SA' : lang === 'fr' ? 'fr-FR' : 'en-US';
     utterance.lang = targetLangCode;
-    utterance.rate = 0.92; // Slightly measured station tempo
-    utterance.pitch = 1.05; // Slightly elevated feminine pitch
+    utterance.rate = 0.94; // Natural station tempo
+    utterance.pitch = 1.22; // Female pitch shift ensures feminine voice on all Android devices
+    utterance.volume = 1.0;
 
-    const setVoiceAndSpeak = () => {
-      const voices = synth.getVoices();
-      const bestVoice = findBestFemaleVoice(voices, lang);
-      if (bestVoice) {
-        utterance.voice = bestVoice;
-      }
-      // Delay speech by 800ms to let the 4-tone chime play its opening chord
-      setTimeout(() => {
-        synth.speak(utterance);
-      }, 800);
+    const voices = synth.getVoices();
+    const bestVoice = findBestFemaleVoice(voices, lang);
+    if (bestVoice) {
+      utterance.voice = bestVoice;
+    }
+
+    utterance.onerror = (e) => {
+      console.warn('Speech synthesis utterance error:', e);
     };
 
-    const currentVoices = synth.getVoices();
-    if (currentVoices.length > 0) {
-      setVoiceAndSpeak();
-    } else {
-      synth.onvoiceschanged = () => {
-        setVoiceAndSpeak();
-        synth.onvoiceschanged = null;
-      };
-    }
+    // CRITICAL for Android WebView:
+    // Calling speak() synchronously inside the user click handler ensures user activation
+    // is NOT blocked by mobile autoplay policies (setTimeout breaks user activation!).
+    synth.resume();
+    synth.speak(utterance);
   } catch (err) {
     console.warn('Speech synthesis failed:', err);
   }
