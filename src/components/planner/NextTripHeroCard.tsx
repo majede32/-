@@ -3,7 +3,7 @@ import { AnyTrip } from '../../types/trips';
 import { Station } from '../../data/rfrData';
 import { TRANSLATIONS, Language } from '../../data/translations';
 import { getDaysBadgeInfo } from '../../services/tripSearchEngine';
-import { playRailwayChime } from '../../utils/sound';
+import { announceTripStationVoice } from '../../utils/sound';
 import { TripTimeline } from './TripTimeline';
 import { InterlineTransferCard } from './InterlineTransferCard';
 import { Calendar, Volume2, Bell, Share2 } from 'lucide-react';
@@ -47,15 +47,17 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
 
         <div className="flex items-center gap-2">
           <button
-            onClick={playRailwayChime}
-            title="Play railway arrival chime"
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
+            onClick={() => announceTripStationVoice(trip, lang)}
+            title={lang === 'ar' ? 'إعلان صوتي للرحلة (جرس وصوت نسائي)' : 'Annonce sonore du train'}
+            aria-label={lang === 'ar' ? 'إعلان صوتي للرحلة (جرس وصوت نسائي)' : 'Station voice announcement'}
+            className="w-8 h-8 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 flex items-center justify-center transition-colors shadow-xs active:scale-95"
           >
             <Volume2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => onSetReminder(trip)}
             title={t.remindMe}
+            aria-label={t.remindMe}
             className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
           >
             <Bell className="w-4 h-4" />
@@ -63,6 +65,7 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
           <button
             onClick={() => onShareTrip(trip)}
             title={t.shareTrip}
+            aria-label={t.shareTrip}
             className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors"
           >
             <Share2 className="w-4 h-4" />
@@ -71,7 +74,7 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
       </div>
 
       {/* Huge Countdown Display */}
-      <div>
+      <div aria-live="polite" aria-atomic="true">
         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block">
           {t.nextTrain}
         </span>

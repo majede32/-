@@ -3,7 +3,7 @@ import { LINES, TUNIS_CENTRAL_ID, findStationById, Station } from '../data/rfrDa
 import { TRANSLATIONS, Language } from '../data/translations';
 import { searchTrips } from '../services/tripSearchEngine';
 import { AnyTrip } from '../types/trips';
-import { playRailwayChime } from '../utils/sound';
+import { announceTripStationVoice } from '../utils/sound';
 
 export interface UseTripSearchResult {
   selectedLineId: string;
@@ -30,6 +30,23 @@ export interface UseTripSearchResult {
   handleShareTrip: (trip: AnyTrip) => void;
 }
 
+function getInitialRouteFromUrl(): { lineId: string; from: string; to: string } {
+  if (typeof window === 'undefined') {
+    return { lineId: 'D', from: 'gobaa', to: TUNIS_CENTRAL_ID };
+  }
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get('from');
+    const to = params.get('to');
+    const line = params.get('line') || 'D';
+
+    if (from && to && findStationById(from) && findStationById(to)) {
+      return { lineId: line, from, to };
+    }
+  } catch {}
+  return { lineId: 'D', from: 'gobaa', to: TUNIS_CENTRAL_ID };
+}
+
 export function useTripSearch(
   currentTunisiaMinutes: number,
   currentDayOfWeek: number,
@@ -37,10 +54,24 @@ export function useTripSearch(
 ): UseTripSearchResult {
   const t = TRANSLATIONS[lang];
 
-  const [selectedLineId, setSelectedLineId] = useState<string>('D');
-  const [fromStationId, setFromStationId] = useState<string>('gobaa');
-  const [toStationId, setToStationId] = useState<string>(TUNIS_CENTRAL_ID);
+  const initialRoute = useMemo(() => getInitialRouteFromUrl(), []);
+  const [selectedLineId, setSelectedLineId] = useState<string>(initialRoute.lineId);
+  const [fromStationId, setFromStationId] = useState<string>(initialRoute.from);
+  const [toStationId, setToStationId] = useState<string>(initialRoute.to);
   const [showStops, setShowStops] = useState<boolean>(true);
+
+  // Sync deep link query params to URL
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('from', fromStationId);
+        url.searchParams.set('to', toStationId);
+        url.searchParams.set('line', selectedLineId);
+        window.history.replaceState(null, '', url.toString());
+      } catch {}
+    }
+  }, [fromStationId, toStationId, selectedLineId]);
 
   // Favorites in localStorage
   const [favorites, setFavorites] = useState<{ lineId: string; from: string; to: string }[]>(() => {
@@ -104,7 +135,7 @@ export function useTripSearch(
   };
 
   const handleSetReminder = (trip: AnyTrip) => {
-    playRailwayChime();
+    announceTripStationVoice(trip, lang);
     const trainNum =
       trip.type === 'direct'
         ? trip.schedule.trainNumber
@@ -116,10 +147,30 @@ export function useTripSearch(
     setTimeout(() => setReminderToast(null), 5000);
   };
 
-  const handleShareTrip = (trip: AnyTrip) => {
+  const handleShareTrip = async (trip: AnyTrip) => {
     const origName = lang === 'ar' ? trip.originStation.nameAr : trip.originStation.nameFr;
     const destName = lang === 'ar' ? trip.destinationStation.nameAr : trip.destinationStation.nameFr;
-    const text = `${t.appTitle} 🚆: ${origName} ➔ ${destName} (${trip.departureTime} ➔ ${trip.arrivalTime})`;
+    const shareUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}?from=${trip.originStation.id}&to=${trip.destinationStation.id}`
+      : '';
+    const text = `${t.appTitle} 🚆: ${origName} ➔ ${destName} (${trip.departureTime} ➔ ${trip.arrivalTime})\n🔗 ${shareUrl}`;
+
+    if (navigator.share && typeof window !== 'undefined') {
+      try {
+        await navigator.share({
+          title: `${t.appTitle} - ${origName} ➔ ${destName}`,
+          text: text,
+          url: shareUrl
+        });
+        return;
+      } catch (err: unknown) {
+        // If user cancelled share sheet, don't fallback to clipboard
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
       setCopiedToast(true);

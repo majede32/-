@@ -129,6 +129,27 @@ describe('Tunisian Public Holidays Calendar', () => {
   });
 });
 
+describe('Edge Cases and Fallbacks', () => {
+  it('returns empty array when origin and destination stations are the same', () => {
+    const trips = searchTrips('gobaa', 'gobaa', 500, 1);
+    expect(trips).toEqual([]);
+  });
+
+  it('returns empty array when non-existent station IDs are supplied', () => {
+    const trips = searchTrips('invalid_id_1', 'invalid_id_2', 500, 1);
+    expect(trips).toEqual([]);
+  });
+
+  it('handles late night queries (23:59) by retrieving morning trains with correct isNextDay flags', () => {
+    // 23:59 on Tuesday (day 2)
+    const trips = searchTrips('gobaa', TUNIS_CENTRAL_ID, 1439, 2);
+    expect(trips.length).toBeGreaterThan(0);
+    expect(trips[0].isNextDay).toBe(true);
+    // Remaining minutes should be > 0 (overnight wait until next morning)
+    expect(trips[0].remainingMinutes).toBeGreaterThan(0);
+  });
+});
+
 describe('Dataset Integrity and Monotonicity Validation', () => {
   it('passes comprehensive data validation without errors', () => {
     const report = validateRFRDataset();
@@ -141,3 +162,4 @@ describe('Dataset Integrity and Monotonicity Validation', () => {
     expect(report.stats.totalSchedules).toBeGreaterThan(50);
   });
 });
+

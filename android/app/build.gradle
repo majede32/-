@@ -1,4 +1,20 @@
-apply plugin: 'com.android.application'
+import groovy.json.JsonSlurper
+
+def getPackageVersion() {
+    try {
+        def pkgFile = file('../../package.json')
+        if (pkgFile.exists()) {
+            def json = new JsonSlurper().parseText(pkgFile.text)
+            return json.version ?: "1.0.0"
+        }
+    } catch (Exception ignored) {}
+    return "1.0.0"
+}
+
+def getBuildVersionCode() {
+    def buildNum = System.getenv("GITHUB_RUN_NUMBER") ?: System.getenv("BUILD_NUMBER")
+    return buildNum ? Integer.parseInt(buildNum) : 1
+}
 
 android {
     namespace = "tn.rfr.tunis"
@@ -7,8 +23,8 @@ android {
         applicationId "tn.rfr.tunis"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode getBuildVersionCode()
+        versionName getPackageVersion()
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

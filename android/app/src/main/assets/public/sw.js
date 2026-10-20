@@ -80,46 +80,58 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "registerSW.js",
     "revision": "1872c500de691dce40960bb85481de07"
   }, {
+    "url": "pwa-512x512.png",
+    "revision": "6b96f43c118eba511d2df887ef6a931f"
+  }, {
+    "url": "pwa-192x192.png",
+    "revision": "c55ed8548f87e00a7353bc5c071eabaa"
+  }, {
     "url": "index.html",
-    "revision": "7fafdad6808efc3e60d8ec61f72c000c"
+    "revision": "01e751907054efd10ee0f08ce03ea3c0"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
   }, {
+    "url": "apple-touch-icon.png",
+    "revision": "78950da1aa497f29996422be1800d71e"
+  }, {
     "url": "assets/jsx-dev-runtime-D-PzxhQO.js",
     "revision": null
   }, {
-    "url": "assets/index-Dw4vVKNj.js",
+    "url": "assets/index-D1sLaNsS.css",
     "revision": null
   }, {
-    "url": "assets/index-CM2nCZik.css",
+    "url": "assets/index-4B4Zo7lC.js",
     "revision": null
   }, {
-    "url": "assets/hero_tunis_rfr_train_1792429855777-CSl8PYnS.jpg",
+    "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
     "revision": null
   }, {
-    "url": "assets/circle-check-CrkJtvsk.js",
+    "url": "assets/hero_tunis_rfr_train-BNe31fC4.webp",
     "revision": null
   }, {
-    "url": "assets/arrow-right-D2aOnJDl.js",
+    "url": "assets/circle-check-BzuzZScG.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-C95WfJhs.js",
+    "url": "assets/arrow-right-BiYMZAtP.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-8OG6zh1T.js",
+    "url": "assets/StationModal-DlCxmKJK.js",
     "revision": null
   }, {
-    "url": "assets/NetworkMap-DCy8JR4s.js",
+    "url": "assets/OfficialPostersModal-DESAhtx3.js",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-hr75uha5.js",
+    "url": "assets/NetworkMap---LjtK7W.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-yZ2MpxdN.js",
+    "url": "assets/FullTimetable-C3sDKsH6.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-CwuCf32v.js",
+    "url": "assets/FaresCalculator-BkQQx79-.js",
+    "revision": null
+  }, {
+    "url": "assets/DownloadModal-CmZ6dQdC.js",
     "revision": null
   }, {
     "url": "icon.svg",

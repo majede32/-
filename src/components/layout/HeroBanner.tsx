@@ -2,7 +2,8 @@ import React from 'react';
 import { TunisiaTimeInfo } from '../../utils/tunisiaTime';
 import { TRANSLATIONS, Language } from '../../data/translations';
 import { Train, Sliders, RefreshCw, Sparkles } from 'lucide-react';
-import heroTrainImage from '../../assets/images/hero_tunis_rfr_train_1792429855777.jpg';
+import heroTrainWebp from '../../assets/images/hero_tunis_rfr_train.webp';
+import heroTrainWebpMobile from '../../assets/images/hero_tunis_rfr_train_mobile.webp';
 
 interface HeroBannerProps {
   lang: Language;
@@ -33,12 +34,17 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
   return (
     <div className="relative rounded-3xl overflow-hidden shadow-xs border border-slate-200 bg-slate-900 min-h-[200px] sm:min-h-[220px] flex flex-col justify-end p-5 sm:p-7 text-white">
-      <img
-        src={heroTrainImage}
-        alt="Modern Tunis RFR Commuter Train"
-        referrerPolicy="no-referrer"
-        className="absolute inset-0 w-full h-full object-cover object-center opacity-70"
-      />
+      <picture className="absolute inset-0 w-full h-full">
+        <source media="(max-width: 640px)" srcSet={heroTrainWebpMobile} type="image/webp" />
+        <source srcSet={heroTrainWebp} type="image/webp" />
+        <img
+          src={heroTrainWebp}
+          alt="Modern Tunis RFR Commuter Train"
+          loading="eager"
+          decoding="async"
+          className="w-full h-full object-cover object-center opacity-70"
+        />
+      </picture>
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
 
       {/* Hero Content */}
