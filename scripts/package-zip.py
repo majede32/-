@@ -28,7 +28,11 @@ with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 continue
             full_path = os.path.join(dirpath, file)
             arcname = os.path.relpath(full_path, root_dir)
-            zipf.write(full_path, arcname)
+            info = zipfile.ZipInfo.from_file(full_path, arcname)
+            if file == 'gradlew' or file.endswith('.sh'):
+                info.external_attr = (0o755 | 0o100000) << 16
+            with open(full_path, 'rb') as f:
+                zipf.writestr(info, f.read())
 
 size_mb = os.path.getsize(output_zip) / (1024 * 1024)
 print(f"✨ Successfully created {output_zip} ({size_mb:.2f} MB)")
