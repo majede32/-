@@ -11,7 +11,7 @@ export const FaresCalculator: React.FC<FaresCalculatorProps> = ({ lang }) => {
   const t = TRANSLATIONS[lang];
   const [lineId, setLineId] = useState<string>('D');
   const [fromStationId, setFromStationId] = useState<string>('gobaa');
-  const [toStationId, setToStationId] = useState<string>('tunis');
+  const [toStationId, setToStationId] = useState<string>(LINES.D.stations[LINES.D.stations.length - 1].id);
 
   const line = LINES[lineId];
   const fromStation = line.stations.find((s) => s.id === fromStationId) || line.stations[0];

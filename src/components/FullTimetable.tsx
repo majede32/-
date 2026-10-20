@@ -248,10 +248,12 @@ export const FullTimetable: React.FC<FullTimetableProps> = ({ lang, initialLineI
       </div>
 
       {/* Legend for Days */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl text-[11px] text-slate-600">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl text-[11px] text-slate-600">
         <div><strong className="text-slate-900">(-):</strong> {t.allDays}</div>
         <div><strong className="text-slate-900">(A):</strong> {t.weekdaysOnly}</div>
         <div><strong className="text-slate-900">(B):</strong> {t.sundaysOnly}</div>
+        <div><strong className="text-slate-900">(C):</strong> {t.exceptSatSun}</div>
+        <div><strong className="text-slate-900">(D):</strong> {t.exceptSat}</div>
       </div>
     </div>
   );

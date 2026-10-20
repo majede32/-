@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="rfrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#9a3412"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#rfrGrad)"/>
+  <!-- Train Front Body -->
+  <rect x="116" y="96" width="280" height="270" rx="48" fill="#ffffff"/>
+  <!-- Windshield -->
+  <path d="M146 136 Q256 120 366 136 L356 220 Q256 210 156 220 Z" fill="#0f172a"/>
+  <!-- Headlights -->
+  <circle cx="166" cy="300" r="22" fill="#f59e0b"/>
+  <circle cx="346" cy="300" r="22" fill="#f59e0b"/>
+  <!-- Central Emblem -->
+  <rect x="236" y="280" width="40" height="12" rx="6" fill="#ea580c"/>
+  <!-- Rails & Tracks -->
+  <line x1="86" y1="426" x2="426" y2="426" stroke="#ffffff" stroke-width="16" stroke-linecap="round"/>
+  <line x1="146" y1="426" x2="126" y2="366" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+  <line x1="366" y1="426" x2="386" y2="366" stroke="#ffffff" stroke-width="14" stroke-linecap="round"/>
+</svg>

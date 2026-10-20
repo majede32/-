@@ -1,7 +1,17 @@
-// Synthesizes a pleasant railway chime using Web Audio API
-export function playRailwayChime() {
+// Synthesizes a pleasant railway announcement chime using standard Web Audio API
+
+interface WebkitWindow extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
+export function playRailwayChime(): void {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextClass =
+      window.AudioContext || (window as unknown as WebkitWindow).webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
     const notes = [
       { freq: 587.33, start: 0, duration: 0.35 },    // D5
       { freq: 440.00, start: 0.25, duration: 0.35 },  // A4
@@ -26,7 +36,7 @@ export function playRailwayChime() {
       osc.start(ctx.currentTime + note.start);
       osc.stop(ctx.currentTime + note.start + note.duration);
     });
-  } catch (e) {
-    console.error('Audio chime error:', e);
+  } catch (error) {
+    console.warn('Audio chime unavailable or blocked by autoplay policy:', error);
   }
 }
