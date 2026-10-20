@@ -47,81 +47,65 @@ export function playRailwayChime(): void {
 }
 
 /**
- * Builds the official text spoken in station announcements
+ * Builds the official text spoken in station announcements in clear English
  */
-export function buildAnnouncementText(trip: AnyTrip, lang: Language): string {
+export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
   const isDirect = trip.type === 'direct';
   const trainNum = isDirect
     ? trip.schedule.trainNumber
-    : `${trip.leg1.schedule.trainNumber} و ${trip.leg2.schedule.trainNumber}`;
+    : `${trip.leg1.schedule.trainNumber} and ${trip.leg2.schedule.trainNumber}`;
 
-  const origin = lang === 'ar' ? trip.originStation.nameAr : trip.originStation.nameFr;
-  const dest = lang === 'ar' ? trip.destinationStation.nameAr : trip.destinationStation.nameFr;
+  // Use Latin station names for fluent and natural English TTS pronunciation
+  const origin = trip.originStation.nameFr;
+  const dest = trip.destinationStation.nameFr;
   const depTime = trip.departureTime;
   const remaining = trip.remainingMinutes;
 
-  if (lang === 'ar') {
-    const [hours, minutes] = depTime.split(':').map((s) => parseInt(s, 10));
-    const timePhrase =
-      minutes === 0
-        ? `تمام الساعة ${hours}`
-        : `الساعة ${hours} و ${minutes} دقيقة`;
-
-    const remainingPhrase =
-      remaining <= 0
-        ? 'ينطلق الآن من المحطة'
-        : `ينطلق خلال ${remaining} دقيقة`;
-
-    return `الرجاء الانتباه. القطار رقم ${trainNum}، المتجه من محطة ${origin} إلى محطة ${dest}، ينطلق في ${timePhrase}. ${remainingPhrase}. شكرًا لانتباهكم.`;
-  }
-
-  if (lang === 'fr') {
-    const remainingPhrase =
-      remaining <= 0 ? 'départ immédiat' : `départ dans ${remaining} minutes`;
-
-    return `Attention s'il vous plaît. Le train numéro ${trainNum}, au départ de ${origin} et à destination de ${dest}, partira à ${depTime}. ${remainingPhrase}. Merci de votre attention.`;
-  }
-
-  // English fallback
   const remainingPhrase =
-    remaining <= 0 ? 'departing now' : `departing in ${remaining} minutes`;
+    remaining <= 0
+      ? 'departing now from the platform'
+      : `departing in ${remaining} minute${remaining > 1 ? 's' : ''}`;
 
-  return `Attention please. Train number ${trainNum}, from ${origin} to ${dest}, will depart at ${depTime}. ${remainingPhrase}. Thank you for your attention.`;
+  if (isDirect) {
+    return `Attention please. Train number ${trainNum}, from ${origin} to ${dest}, will depart at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
+  }
+
+  return `Attention please. Connection from ${origin} to ${dest}, with transfer at Tunis Barcelona Central. First train number ${trip.leg1.schedule.trainNumber} departs at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
 }
 
 /**
- * Finds the most natural female voice for the target language in Web Speech API
+ * Finds the highest quality English female voice in Web Speech API
  */
-function findBestFemaleVoice(voices: SpeechSynthesisVoice[], lang: Language): SpeechSynthesisVoice | null {
-  const targetPrefix = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr' : 'en';
-
-  // Android Google TTS and browser female voice identifiers
-  // On Android, Google Arabic female voices are typically "ar-xa-x-a-local", "ar-xa-x-c-local", "ar-xa-x-d-local"
-  const femaleKeywords = [
-    'female', 'woman', 'zira', 'salma', 'meryem', 'yasmin', 'leila', 'amira', 'zeina', 'fatima', 'hoda',
-    'hortense', 'julie', 'celine', 'audrey', 'samantha', 'victoria', 'karen', 'moira', 'fiona', 'tessa',
-    'x-a', 'x-c', 'x-d', 'wavenet-a', 'wavenet-c'
-  ];
-
-  const langVoices = voices.filter((v) => {
-    const vLang = v.lang.toLowerCase().replace('_', '-');
-    return vLang.startsWith(targetPrefix);
+function findBestEnglishFemaleVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const enVoices = voices.filter((v) => {
+    const l = v.lang.toLowerCase().replace('_', '-');
+    return l.startsWith('en');
   });
 
-  if (langVoices.length === 0) {
-    return voices.find((v) => v.lang.toLowerCase().startsWith(targetPrefix)) || null;
+  if (enVoices.length === 0) {
+    return voices[0] || null;
   }
 
-  // 1. Look for explicit female name or keyword
-  const femaleVoice = langVoices.find((v) => {
-    const nameLower = (v.name + ' ' + v.voiceURI).toLowerCase();
+  // Keywords that identify female voices across Android (Google TTS), iOS/Safari, Windows, and Chrome
+  const femaleKeywords = [
+    'female', 'woman', 'zira', 'samantha', 'victoria', 'karen', 'moira', 'fiona', 'tessa',
+    'serena', 'ava', 'allison', 'susan', 'jenny', 'aria', 'en-gb-x-rjs#female', 'en-us-x-sfg#female',
+    'google uk english female', 'google us english female', 'en-gb-language', 'en-gb', 'en-us'
+  ];
+
+  // 1. Prioritize explicit female English voice (British English is classic railway style)
+  const femaleVoice = enVoices.find((v) => {
+    const nameLower = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
     return femaleKeywords.some((kw) => nameLower.includes(kw));
   });
 
   if (femaleVoice) return femaleVoice;
 
-  // 2. Default to first matching language voice
-  return langVoices[0];
+  // 2. Default to British English if found, otherwise first available English voice
+  const ukVoice = enVoices.find((v) => v.lang.toLowerCase().includes('gb'));
+  if (ukVoice) return ukVoice;
+
+  return enVoices[0];
 }
 
 // Pre-warm voices on Android WebView
@@ -137,9 +121,9 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 }
 
 /**
- * Plays the official chime and speaks the official female station announcement
+ * Plays the official 4-tone chime, followed immediately by the spoken English female station announcement
  */
-export function announceTripStationVoice(trip: AnyTrip, lang: Language): void {
+export function announceTripStationVoice(trip: AnyTrip, _lang?: Language): void {
   // 1. Play railway chime
   playRailwayChime();
 
@@ -158,30 +142,27 @@ export function announceTripStationVoice(trip: AnyTrip, lang: Language): void {
       synth.resume();
     }
 
-    const text = buildAnnouncementText(trip, lang);
+    const text = buildAnnouncementText(trip);
     const utterance = new SpeechSynthesisUtterance(text);
 
-    // Use standard regional codes that Android Google TTS supports:
-    // 'ar-SA' or 'ar' is universally supported on Android; 'ar-TN' is NOT included in Android Google TTS!
-    const targetLangCode = lang === 'ar' ? 'ar-SA' : lang === 'fr' ? 'fr-FR' : 'en-US';
-    utterance.lang = targetLangCode;
-    utterance.rate = 0.94; // Natural station tempo
-    utterance.pitch = 1.22; // Female pitch shift ensures feminine voice on all Android devices
+    // Standard English language code guaranteed on 100% of Android devices
+    utterance.lang = 'en-US';
+    utterance.rate = 0.90; // Calm, measured railway announcer cadence
+    utterance.pitch = 1.15; // Natural feminine pitch
     utterance.volume = 1.0;
 
     const voices = synth.getVoices();
-    const bestVoice = findBestFemaleVoice(voices, lang);
+    const bestVoice = findBestEnglishFemaleVoice(voices);
     if (bestVoice) {
       utterance.voice = bestVoice;
+      utterance.lang = bestVoice.lang;
     }
 
     utterance.onerror = (e) => {
       console.warn('Speech synthesis utterance error:', e);
     };
 
-    // CRITICAL for Android WebView:
-    // Calling speak() synchronously inside the user click handler ensures user activation
-    // is NOT blocked by mobile autoplay policies (setTimeout breaks user activation!).
+    // Synchronous execution ensures Android WebView autoplay activation gate is honored
     synth.resume();
     synth.speak(utterance);
   } catch (err) {

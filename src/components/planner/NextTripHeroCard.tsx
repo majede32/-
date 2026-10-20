@@ -48,8 +48,8 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => announceTripStationVoice(trip, lang)}
-            title={lang === 'ar' ? 'إعلان صوتي للرحلة (جرس وصوت نسائي)' : 'Annonce sonore du train'}
-            aria-label={lang === 'ar' ? 'إعلان صوتي للرحلة (جرس وصوت نسائي)' : 'Station voice announcement'}
+            title={lang === 'ar' ? 'إعلان صوتي رسمي بالإنجليزية (جرس وصوت نسائي)' : 'Official station announcement in English (chime & voice)'}
+            aria-label="Official station announcement in English"
             className="w-8 h-8 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 flex items-center justify-center transition-colors shadow-xs active:scale-95"
           >
             <Volume2 className="w-4 h-4" />
