@@ -27,10 +27,10 @@ jobs:
       - name: 📥 استرجاع الكود (Checkout Code)
         uses: actions/checkout@v4
 
-      - name: 🟢 إعداد Node.js
+      - name: 🟢 إعداد Node.js (v22+ مطلوب لـ Capacitor)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: ☕ إعداد Java (JDK 17)
