@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">قطار RFR تونس</string>
+    <string name="title_activity_main">قطار RFR تونس</string>
+    <string name="package_name">tn.rfr.tunis</string>
+    <string name="custom_url_scheme">tn.rfr.tunis</string>
+</resources>

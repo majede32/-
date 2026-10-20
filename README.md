@@ -74,3 +74,26 @@ git remote add origin https://github.com/<USERNAME>/<REPO_NAME>.git
 git push -u origin main
 ```
 
+---
+
+## 📱 تفعيل وبناء تطبيق Android APK عبر GitHub Actions
+
+المشروع مزوّد ببيئة **Capacitor Android** كاملة داخل مجلد `android/` مع سير عمل آلي **GitHub Actions** في `.github/workflows/build-apk.yml`.
+
+### خطوات الحصول على ملف الـ APK:
+1. ارفع المشروع إلى مستودعك على GitHub باستخدام الأوامر أعلاه.
+2. اذهب إلى تبويب **Actions** في مستودعك على GitHub.
+3. ستلاحظ بدء مهمة **Build Android APK** تلقائياً.
+4. عند اكتمال المهمة، ستجد ملف الـ APK تحت قسم **Artifacts** باسم:
+   ```
+   Tunis-RFR-Android-APK (app-debug.apk)
+   ```
+5. **إنشاء Release رسمي مع APK:**
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+   سيقوم GitHub Actions تلقائياً بإنشاء Release رسمي وإرفاق ملف الـ APK الجاهز لتوزيعه على المستخدمين.
+
+---
+
