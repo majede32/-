@@ -1,8 +1,12 @@
 import os
 import zipfile
 
-root_dir = '/app/applet'
-output_zip = '/app/applet/public/tunis-rfr-timetables.zip'
+# Dynamically resolve root project directory regardless of environment (local, CI/CD, runner, container)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(script_dir, '..'))
+output_dir = os.path.join(root_dir, 'public')
+os.makedirs(output_dir, exist_ok=True)
+output_zip = os.path.join(output_dir, 'tunis-rfr-timetables.zip')
 exclude_dirs = {'.git', 'node_modules', 'dist', 'dev-dist', '.aistudio', '__pycache__', '.gradle'}
 exclude_files = {'tunis-rfr-timetables.zip'}
 

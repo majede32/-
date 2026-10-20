@@ -7,7 +7,7 @@
     "dev": "vite --port=3000 --host=0.0.0.0",
     "validate": "tsx scripts/validate-dataset.ts",
     "package:zip": "python3 scripts/package-zip.py",
-    "build": "npm run validate && python3 scripts/package-zip.py && vite build",
+    "build": "npm run validate && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
