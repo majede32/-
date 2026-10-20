@@ -89,7 +89,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-100/70 text-slate-900 pb-24 md:pb-12">
+      <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 text-slate-900 pb-24 md:pb-12">
         {/* Offline Banner Indicator */}
         {!isOnline && (
           <div className="bg-amber-600 text-white text-xs py-2 px-4 text-center font-bold flex items-center justify-center gap-2 shadow-xs">
@@ -110,7 +110,7 @@ export default function App() {
         />
 
         {/* Main Content Area */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 space-y-5">
+        <main className="w-full max-w-6xl mx-auto px-3 sm:px-6 pt-3 sm:pt-4 space-y-4 sm:space-y-5 overflow-x-hidden">
           {/* Hero Banner with Live / Simulated Clock */}
           <HeroBanner
             lang={lang}

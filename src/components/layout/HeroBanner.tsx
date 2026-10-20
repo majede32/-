@@ -33,7 +33,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       : tunisiaTimeInfo.holiday.nameEn);
 
   return (
-    <div className="relative rounded-3xl overflow-hidden shadow-xs border border-slate-200 bg-slate-900 min-h-[200px] sm:min-h-[220px] flex flex-col justify-end p-5 sm:p-7 text-white">
+    <div className="relative rounded-3xl overflow-hidden shadow-xs border border-slate-200 bg-slate-900 min-h-[170px] sm:min-h-[220px] flex flex-col justify-end p-4 sm:p-7 text-white">
       <picture className="absolute inset-0 w-full h-full">
         <source media="(max-width: 640px)" srcSet={heroTrainWebpMobile} type="image/webp" />
         <source srcSet={heroTrainWebp} type="image/webp" />
@@ -48,29 +48,29 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
 
       {/* Hero Content */}
-      <div className="relative z-10 space-y-2">
+      <div className="relative z-10 space-y-1.5 sm:space-y-2">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-orange-600/90 text-white flex items-center justify-center">
-            <Train className="w-4 h-4" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-orange-600/90 text-white flex items-center justify-center">
+            <Train className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+          <h1 className="text-xl sm:text-3xl font-black tracking-tight text-white">
             {t.appTitle}
           </h1>
         </div>
 
-        <p className="text-xs sm:text-sm text-slate-200 max-w-xl font-medium">
+        <p className="text-[11px] sm:text-sm text-slate-200 max-w-xl font-medium">
           {t.subtitle}
         </p>
 
         {/* Time & Day Indicator Bar */}
-        <div className="pt-2 flex flex-wrap items-center gap-2 text-xs">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white font-mono tabular-nums">
+        <div className="pt-1.5 sm:pt-2 flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white font-mono tabular-nums">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>{t.tunisiaTime}</span>
             <span className="text-slate-300">·</span>
             <span className="font-sans">{formattedDateStr}</span>
             <span className="text-slate-300">·</span>
-            <span className="font-bold text-amber-300">{tunisiaTimeInfo.formattedTime}</span>
+            <span dir="ltr" className="font-bold text-amber-300">{tunisiaTimeInfo.formattedTime}</span>
             {isSimulated && (
               <span className="text-[10px] bg-amber-500/80 text-black px-1.5 py-0.2 rounded font-sans font-bold">
                 محاكاة

@@ -24,18 +24,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   const t = TRANSLATIONS[lang];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 safe-area-top">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4">
         {/* Zone 1: Brand Wordmark */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-orange-600 text-white flex items-center justify-center shadow-xs">
-            <Train className="w-5 h-5" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-orange-600 text-white flex items-center justify-center shadow-xs">
+            <Train className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <button
             onClick={() => onSelectTab('planner')}
-            className="text-lg font-black tracking-tight text-slate-900 hover:text-orange-600 transition-colors whitespace-nowrap"
+            className="text-base sm:text-lg font-black tracking-tight text-slate-900 hover:text-orange-600 transition-colors whitespace-nowrap"
           >
-            {lang === 'ar' ? 'قطار التالي · RFR تونس' : 'Next Train · RFR Tunis'}
+            <span className="sm:hidden">{lang === 'ar' ? 'قطار RFR' : 'RFR Tunis'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? 'قطار التالي · RFR تونس' : 'Next Train · RFR Tunis'}</span>
           </button>
         </div>
 
@@ -76,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Zone 3: Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Install PWA Button if available */}
           {isInstallable && (
             <button
@@ -92,18 +93,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Download Project ZIP */}
           <button
             onClick={onOpenDownloadModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition-all shadow-xs active:scale-95"
             title={lang === 'ar' ? 'تحميل كامل المشروع كملف ZIP' : 'Télécharger le code source (ZIP)'}
+            aria-label="تحميل المشروع"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{lang === 'ar' ? 'تحميل المشروع' : 'Code ZIP'}</span>
+            <span className="hidden sm:inline">{lang === 'ar' ? 'تحميل المشروع' : 'Code ZIP'}</span>
           </button>
 
           {/* Language Switcher */}
           <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
             <button
               onClick={() => onSetLang('ar')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+              className={`px-1.5 py-1 sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-colors ${
                 lang === 'ar'
                   ? 'bg-white text-orange-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -113,7 +115,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => onSetLang('fr')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+              className={`px-1.5 py-1 sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-colors ${
                 lang === 'fr'
                   ? 'bg-white text-orange-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -123,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={() => onSetLang('en')}
-              className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+              className={`px-1.5 py-1 sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold transition-colors ${
                 lang === 'en'
                   ? 'bg-white text-orange-600 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
