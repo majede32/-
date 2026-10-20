@@ -33,11 +33,11 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      - name: ☕ إعداد Java (JDK 17)
+      - name: ☕ إعداد Java (JDK 21 مطلوب لـ Capacitor 7)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: 📦 تثبيت مكتبات المشروع
