@@ -58,7 +58,7 @@ jobs:
       - name: 📱 بناء ملف APK (Assemble Debug APK)
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: 🔍 التحقق من توليد ملف APK
         run: |
