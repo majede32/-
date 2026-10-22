@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "c55ed8548f87e00a7353bc5c071eabaa"
   }, {
     "url": "index.html",
-    "revision": "01e751907054efd10ee0f08ce03ea3c0"
+    "revision": "38ed3cd8eaaad0c6931aaaa8e052d9e1"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
@@ -98,10 +98,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/jsx-dev-runtime-D-PzxhQO.js",
     "revision": null
   }, {
-    "url": "assets/index-D1sLaNsS.css",
+    "url": "assets/index-CYMRw96F.css",
     "revision": null
   }, {
-    "url": "assets/index-4B4Zo7lC.js",
+    "url": "assets/index-BWhF88Ni.js",
     "revision": null
   }, {
     "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
@@ -110,28 +110,37 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/hero_tunis_rfr_train-BNe31fC4.webp",
     "revision": null
   }, {
-    "url": "assets/circle-check-BzuzZScG.js",
+    "url": "assets/circle-check-C0SzN9FL.js",
     "revision": null
   }, {
-    "url": "assets/arrow-right-BiYMZAtP.js",
+    "url": "assets/arrow-right-BUS43NaU.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-DlCxmKJK.js",
+    "url": "assets/StationModal-B7t1WtZh.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-DESAhtx3.js",
+    "url": "assets/OfficialPostersModal-D_ymRKiP.js",
     "revision": null
   }, {
-    "url": "assets/NetworkMap---LjtK7W.js",
+    "url": "assets/NetworkMap-h778LHmz.js",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-C3sDKsH6.js",
+    "url": "assets/FullTimetable-Cn0hBbft.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-BkQQx79-.js",
+    "url": "assets/FaresCalculator-B9slMvhN.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-CmZ6dQdC.js",
+    "url": "assets/DownloadModal-1ZdTNzNo.js",
+    "revision": null
+  }, {
+    "url": "assets/BusConnectionView-CLdxBKuf.js",
+    "revision": null
+  }, {
+    "url": "assets/aistudio/Screenshot_2026-10-20-22-05-14-193_tn.rfr.tunis_b970d9d4.jpg",
+    "revision": null
+  }, {
+    "url": "assets/aistudio/FB_IMG_1756806164028_e8c7ff15.jpg",
     "revision": null
   }, {
     "url": "icon.svg",

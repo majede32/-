@@ -13,6 +13,7 @@ import { BottomNavigation } from './components/layout/BottomNavigation';
 import { TimeSimulatorModal } from './components/time/TimeSimulatorModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { getTunisiaTime, TunisiaTimeInfo } from './utils/tunisiaTime';
+import { checkTunisianHoliday } from './utils/tunisianHolidays';
 import { usePWAInstall, useOnlineStatus } from './hooks/usePWAInstall';
 import { WifiOff, Loader2 } from 'lucide-react';
 
@@ -35,6 +36,9 @@ const StationModal = lazy(() =>
 const DownloadModal = lazy(() =>
   import('./components/DownloadModal').then((m) => ({ default: m.DownloadModal }))
 );
+const BusConnectionView = lazy(() =>
+  import('./components/BusConnectionView').then((m) => ({ default: m.BusConnectionView }))
+);
 
 const ViewLoadingFallback = () => (
   <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 flex flex-col items-center justify-center gap-3 shadow-xs">
@@ -45,7 +49,7 @@ const ViewLoadingFallback = () => (
 
 export default function App() {
   const [lang, setLang] = useState<Language>('ar');
-  const [activeTab, setActiveTab] = useState<'planner' | 'table' | 'map' | 'fares'>('planner');
+  const [activeTab, setActiveTab] = useState<'planner' | 'table' | 'buses' | 'map' | 'fares'>('planner');
 
   // Time and Day simulation state (null = live Tunisia time and actual day)
   const [simulatedMinutes, setSimulatedMinutes] = useState<number | null>(null);
@@ -86,6 +90,12 @@ export default function App() {
   }, [tunisiaTimeInfo, lang]);
 
   const isSimulated = simulatedMinutes !== null || simulatedDayOfWeek !== null;
+
+  const isTomorrowHoliday = useMemo(() => {
+    const tomorrow = new Date(tunisiaTimeInfo.year, tunisiaTimeInfo.month - 1, tunisiaTimeInfo.day + 1);
+    const check = checkTunisianHoliday(tomorrow.getFullYear(), tomorrow.getMonth() + 1, tomorrow.getDate());
+    return check.isHoliday;
+  }, [tunisiaTimeInfo.year, tunisiaTimeInfo.month, tunisiaTimeInfo.day]);
 
   return (
     <ErrorBoundary>
@@ -135,12 +145,24 @@ export default function App() {
               formattedDateStr={formattedDateStr}
               isSimulated={isSimulated}
               onOpenTimeModal={() => setIsTimeModalOpen(true)}
+              isHoliday={tunisiaTimeInfo.isHoliday}
+              isTomorrowHoliday={isTomorrowHoliday}
             />
           )}
 
           {activeTab === 'table' && (
             <Suspense fallback={<ViewLoadingFallback />}>
               <FullTimetable lang={lang} />
+            </Suspense>
+          )}
+
+          {activeTab === 'buses' && (
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <BusConnectionView
+                lang={lang}
+                currentTunisiaMinutes={tunisiaTimeInfo.totalMinutes}
+                currentDayOfWeek={tunisiaTimeInfo.dayOfWeek}
+              />
             </Suspense>
           )}
 

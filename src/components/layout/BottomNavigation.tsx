@@ -1,11 +1,11 @@
 import React from 'react';
 import { TRANSLATIONS, Language } from '../../data/translations';
-import { Train, Clock, Map, Ticket } from 'lucide-react';
+import { Train, Clock, Map, Ticket, Bus } from 'lucide-react';
 
 interface BottomNavigationProps {
   lang: Language;
-  activeTab: 'planner' | 'table' | 'map' | 'fares';
-  onSelectTab: (tab: 'planner' | 'table' | 'map' | 'fares') => void;
+  activeTab: 'planner' | 'table' | 'buses' | 'map' | 'fares';
+  onSelectTab: (tab: 'planner' | 'table' | 'buses' | 'map' | 'fares') => void;
 }
 
 export const BottomNavigation: React.FC<BottomNavigationProps> = ({
@@ -28,9 +28,19 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       </button>
 
       <button
+        onClick={() => onSelectTab('buses')}
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-xl transition-all active:scale-95 ${
+          activeTab === 'buses' ? 'text-emerald-600 font-bold' : 'text-slate-500 hover:text-slate-700'
+        }`}
+      >
+        <Bus className="w-5 h-5" />
+        <span className="text-[10px]">{t.busTab}</span>
+      </button>
+
+      <button
         onClick={() => onSelectTab('table')}
-        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${
-          activeTab === 'table' ? 'text-orange-600 font-bold' : 'text-slate-500'
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-xl transition-all active:scale-95 ${
+          activeTab === 'table' ? 'text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-700'
         }`}
       >
         <Clock className="w-5 h-5" />
@@ -39,8 +49,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
       <button
         onClick={() => onSelectTab('map')}
-        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${
-          activeTab === 'map' ? 'text-orange-600 font-bold' : 'text-slate-500'
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-xl transition-all active:scale-95 ${
+          activeTab === 'map' ? 'text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-700'
         }`}
       >
         <Map className="w-5 h-5" />
@@ -49,8 +59,8 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 
       <button
         onClick={() => onSelectTab('fares')}
-        className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${
-          activeTab === 'fares' ? 'text-orange-600 font-bold' : 'text-slate-500'
+        className={`flex-1 flex flex-col items-center justify-center gap-1 py-1 px-1 rounded-xl transition-all active:scale-95 ${
+          activeTab === 'fares' ? 'text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-700'
         }`}
       >
         <Ticket className="w-5 h-5" />

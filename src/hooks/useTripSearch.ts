@@ -50,7 +50,9 @@ function getInitialRouteFromUrl(): { lineId: string; from: string; to: string } 
 export function useTripSearch(
   currentTunisiaMinutes: number,
   currentDayOfWeek: number,
-  lang: Language
+  lang: Language,
+  isHoliday: boolean = false,
+  isTomorrowHoliday: boolean = false
 ): UseTripSearchResult {
   const t = TRANSLATIONS[lang];
 
@@ -73,15 +75,20 @@ export function useTripSearch(
     }
   }, [fromStationId, toStationId, selectedLineId]);
 
-  // Favorites in localStorage
+  // Favorites in localStorage (sanitized to remove any deleted lines/stations)
   const [favorites, setFavorites] = useState<{ lineId: string; from: string; to: string }[]>(() => {
     try {
       const saved = localStorage.getItem('rfr_fav_routes');
-      return saved ? JSON.parse(saved) : [
-        { lineId: 'D', from: 'gobaa', to: TUNIS_CENTRAL_ID },
-        { lineId: 'E', from: 'bougatfa', to: TUNIS_CENTRAL_ID },
-        { lineId: 'A', from: 'erriadh', to: TUNIS_CENTRAL_ID }
-      ];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const valid = parsed.filter(
+            (f: any) => f && findStationById(f.from) && findStationById(f.to)
+          );
+          if (valid.length > 0) return valid;
+        }
+      }
+      return [{ lineId: 'D', from: 'gobaa', to: TUNIS_CENTRAL_ID }];
     } catch {
       return [{ lineId: 'D', from: 'gobaa', to: TUNIS_CENTRAL_ID }];
     }
@@ -97,16 +104,18 @@ export function useTripSearch(
     fromStation && toStation && fromStation.lineId !== toStation.lineId
   );
 
-  // Calculate trips via pure service
+  // Calculate trips via pure service with holiday and day-of-week validation
   const allTrips = useMemo(() => {
     return searchTrips(
       fromStationId,
       toStationId,
       currentTunisiaMinutes,
       currentDayOfWeek,
-      lang
+      lang,
+      isHoliday,
+      isTomorrowHoliday
     );
-  }, [fromStationId, toStationId, currentTunisiaMinutes, currentDayOfWeek, lang]);
+  }, [fromStationId, toStationId, currentTunisiaMinutes, currentDayOfWeek, lang, isHoliday, isTomorrowHoliday]);
 
   const nextTrip = allTrips[0];
   const followingTrips = useMemo(() => allTrips.slice(1, 6), [allTrips]);
@@ -136,10 +145,9 @@ export function useTripSearch(
 
   const handleSetReminder = (trip: AnyTrip) => {
     announceTripStationVoice(trip, lang);
-    const trainNum =
-      trip.type === 'direct'
-        ? trip.schedule.trainNumber
-        : `${trip.leg1.schedule.trainNumber} / ${trip.leg2.schedule.trainNumber}`;
+    const trainNum = trip.type === 'direct'
+      ? trip.schedule.trainNumber
+      : `حافلة ${trip.busLine} + قطار ${trip.trainTrip.schedule.trainNumber}`;
     const alertMsg = t.reminderAlert
       .replace('{train}', trainNum)
       .replace('{time}', trip.departureTime);

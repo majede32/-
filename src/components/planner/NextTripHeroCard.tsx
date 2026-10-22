@@ -5,8 +5,7 @@ import { TRANSLATIONS, Language } from '../../data/translations';
 import { getDaysBadgeInfo } from '../../services/tripSearchEngine';
 import { announceTripStationVoice } from '../../utils/sound';
 import { TripTimeline } from './TripTimeline';
-import { InterlineTransferCard } from './InterlineTransferCard';
-import { Calendar, Volume2, Bell, Share2 } from 'lucide-react';
+import { Calendar, Volume2, Bell, Share2, Bus, Train, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface NextTripHeroCardProps {
   trip: AnyTrip;
@@ -121,9 +120,55 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
         </div>
       </div>
 
-      {/* Direct vs Interline Layout */}
-      {trip.type === 'direct' ? (
+      {/* Multimodal vs Direct Details */}
+      {trip.type === 'multimodal_bus' ? (
+        <div className="space-y-3 pt-2">
+          <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
+            <span>مراحل الرحلة المدمجة (حافلة طبربة + قطار RFR)</span>
+            <span className="text-slate-500 font-mono">{trip.durationMinutes} دقيقة إجمالاً</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            {/* Step 1 */}
+            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-1">
+                <Bus className="w-4 h-4" />
+                <span>المرحلة 1: {trip.direction === 'tebourba_to_tunis' ? `حافلة الخط ${trip.busLine}` : `قطار RFR ${trip.trainTrip.schedule.trainNumber}`}</span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                {trip.direction === 'tebourba_to_tunis'
+                  ? `من طبربة (${trip.busDeparture}) ➔ محطة القباعة (${trip.busArrival})`
+                  : `من تونس (${trip.trainTrip.departureTime}) ➔ محطة القباعة (${trip.trainTrip.arrivalTime})`}
+              </p>
+            </div>
+
+            {/* Step 2: Transfer */}
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col justify-center">
+              <span className="text-amber-800 font-bold mb-1">
+                ⏱️ ترابط بالرصيف (محطة القباعة)
+              </span>
+              <p className="text-[11px] text-slate-600">
+                انتظار وتبديل: <strong>{trip.transferWaitMinutes} دق</strong>
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="p-3 rounded-2xl bg-orange-50 border border-orange-200">
+              <div className="flex items-center gap-1.5 text-orange-800 font-bold mb-1">
+                <Train className="w-4 h-4" />
+                <span>المرحلة 2: {trip.direction === 'tebourba_to_tunis' ? `قطار RFR ${trip.trainTrip.schedule.trainNumber}` : `حافلة العودة الخط ${trip.busLine}`}</span>
+              </div>
+              <p className="text-[11px] text-slate-600">
+                {trip.direction === 'tebourba_to_tunis'
+                  ? `من محطة القباعة (${trip.trainTrip.departureTime}) ➔ ${lang === 'ar' ? trip.destinationStation.nameAr : trip.destinationStation.nameFr} (${trip.trainTrip.arrivalTime})`
+                  : `من محطة القباعة (${trip.busDeparture}) ➔ طبربة (${trip.busArrival})`}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
         <>
+          {/* Direct Trip Details */}
           <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-b border-slate-100 pb-3 sm:pb-4 gap-2">
             <div className="flex items-center gap-1 sm:gap-1.5">
               <span>{t.duration}</span>
@@ -155,8 +200,6 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
             onSelectStationModal={onSelectStationModal}
           />
         </>
-      ) : (
-        <InterlineTransferCard trip={trip} lang={lang} />
       )}
     </div>
   );

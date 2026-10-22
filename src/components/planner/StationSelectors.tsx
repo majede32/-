@@ -96,6 +96,11 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
               onChange={(e) => onSelectFrom(e.target.value)}
               className="w-full bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-2xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
             >
+              <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (معتمدية طبربة)' : '🚌 Bus de rabattement (Tébourba)'}>
+                <option value="tebourba_bus">
+                  {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116)' : 'Tébourba (Bus 42/116)'}
+                </option>
+              </optgroup>
               {Object.values(LINES).map((line) => (
                 <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
                   {line.stations.map((st) => (
@@ -127,7 +132,7 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
             <label className="text-[11px] font-bold text-slate-600">{t.to}</label>
             {toStation && (
               <span className="text-[10px] font-semibold text-slate-500">
-                {lang === 'ar' ? LINES[toStation.lineId].nameAr : LINES[toStation.lineId].nameFr}
+                {lang === 'ar' ? LINES[toStation.lineId]?.nameAr || 'ترابط حافلة' : LINES[toStation.lineId]?.nameFr || 'Bus'}
               </span>
             )}
           </div>
@@ -137,6 +142,11 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
               onChange={(e) => onSelectTo(e.target.value)}
               className="w-full bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-2xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
             >
+              <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (معتمدية طبربة)' : '🚌 Bus de rabattement (Tébourba)'}>
+                <option value="tebourba_bus">
+                  {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116)' : 'Tébourba (Bus 42/116)'}
+                </option>
+              </optgroup>
               {Object.values(LINES).map((line) => (
                 <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
                   {line.stations.map((st) => (
@@ -162,26 +172,37 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
               }}
               className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
-              القباعة ➔ تونس (D)
+              القباعة ➔ تونس
             </button>
             <button
               onClick={() => {
-                onSelectLine('E');
-                onSelectFrom('bougatfa');
+                onSelectLine('D');
+                onSelectFrom('tebourba_bus');
+                onSelectTo(TUNIS_CENTRAL_ID);
+              }}
+              className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+            >
+              <span>🚌 طبربة ➔ تونس</span>
+            </button>
+            <button
+              onClick={() => {
+                onSelectLine('D');
+                onSelectFrom(TUNIS_CENTRAL_ID);
+                onSelectTo('tebourba_bus');
+              }}
+              className="text-[11px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+            >
+              <span>🚌 تونس ➔ طبربة (عودة)</span>
+            </button>
+            <button
+              onClick={() => {
+                onSelectLine('D');
+                onSelectFrom('manouba');
                 onSelectTo(TUNIS_CENTRAL_ID);
               }}
               className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
-              بوقطفة ➔ تونس (E)
-            </button>
-            <button
-              onClick={() => {
-                onSelectFrom('gobaa');
-                onSelectTo('hammam_lif');
-              }}
-              className="text-[11px] font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
-            >
-              القباعة ➔ حمام الأنف (ترانزيت)
+              منوبة ➔ تونس
             </button>
           </div>
 

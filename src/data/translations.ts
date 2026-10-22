@@ -83,7 +83,18 @@ export const TRANSLATIONS = {
     offlineReady: 'يعمل دون إنترنت (Offline PWA)',
     offlineAlert: 'أنت في وضع عدم الاتصال — يتم استخدام المواعيد المخزنة محلياً.',
     today: 'اليوم',
-    tomorrow: 'غداً'
+    tomorrow: 'غداً',
+    busTab: 'ترابط الحافلة (طبربة)',
+    busConnectionHeader: 'تواقيت سفرات خط الترابط طبربة – القباعة',
+    busSubtitle: 'الخط 42 والخط 116 (ترابط مباشر مع قطار RFR بمحطة القباعة)',
+    busDepartures: 'الإنطلاق من طبربة ➔ القباعة',
+    busReturns: 'العودة من القباعة ➔ طبربة',
+    connectingTrainHeading: 'القطار المترابط مع الحافلة',
+    viewBusOfficialDocument: 'الجدول الرسمي الصادر عن معتمدية طبربة',
+    busLine: 'الحافلة',
+    tebourba: 'طبربة',
+    gobaa: 'القباعة',
+    busNotice: 'مواعيد رسمية لخطوط الترابط 42 و 116 (معتمدية طبربة / ولاية منوبة) مع قطار RFR بمحطة القباعة.'
   },
   fr: {
     appTitle: 'Next Train Tunis RFR',
@@ -167,7 +178,18 @@ export const TRANSLATIONS = {
     offlineReady: 'Mode hors-ligne disponible (PWA)',
     offlineAlert: 'Vous êtes hors-ligne — les données en cache sont utilisées.',
     today: 'Aujourd\'hui',
-    tomorrow: 'Demain'
+    tomorrow: 'Demain',
+    busTab: 'Bus (Tébourba)',
+    busConnectionHeader: 'Ligne de correspondance Tébourba – Gobaa',
+    busSubtitle: 'Lignes 42 et 116 (Correspondance directe avec le train RFR à Gobaa)',
+    busDepartures: 'Départs de Tébourba ➔ Gobaa',
+    busReturns: 'Retours de Gobaa ➔ Tébourba',
+    connectingTrainHeading: 'Train RFR en correspondance',
+    viewBusOfficialDocument: 'Horaires officiels de Tébourba',
+    busLine: 'Bus',
+    tebourba: 'Tébourba',
+    gobaa: 'Gobaa',
+    busNotice: 'Horaires officiels des lignes de rabattement 42 et 116 (Délégation de Tébourba) avec le train RFR à la gare de Gobaa.'
   },
   en: {
     appTitle: 'Next Train Tunis RFR',
@@ -251,6 +273,17 @@ export const TRANSLATIONS = {
     offlineReady: 'Works Offline (PWA)',
     offlineAlert: 'You are offline — cached timetables are active.',
     today: 'Today',
-    tomorrow: 'Tomorrow'
+    tomorrow: 'Tomorrow',
+    busTab: 'Bus (Tebourba)',
+    busConnectionHeader: 'Feeder Bus Connection Tebourba – Gobaa',
+    busSubtitle: 'Lines 42 & 116 (Direct connection with RFR train at Gobaa)',
+    busDepartures: 'Departures from Tebourba ➔ Gobaa',
+    busReturns: 'Returns from Gobaa ➔ Tebourba',
+    connectingTrainHeading: 'Connecting RFR Train',
+    viewBusOfficialDocument: 'Official Tebourba Timetable Poster',
+    busLine: 'Bus',
+    tebourba: 'Tebourba',
+    gobaa: 'Gobaa',
+    busNotice: 'Official schedules for feeder bus lines 42 and 116 (Tebourba Delegation / Manouba) with RFR train at Gobaa station.'
   }
 };

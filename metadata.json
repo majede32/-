@@ -1,6 +1,6 @@
 {
   "name": "Tunis RFR & Banlieue Timetables | قطارات تونس السريعة",
-  "description": "تطبيق حديث ومتطور لمواعيد قطارات RFR والأحواز الجنوبية في تونس الكبرى (الخط A، الخط D، والخط E) مع التوقيت الفعلي وجداول الشتاء 2026-2027.",
+  "description": "تطبيق مواعيد قطارات RFR تونس - الخط D (القباعة ⇄ تونس ساحة برشلونة) مع التوقيت الفعلي وجداول الشتاء 2026-2027.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

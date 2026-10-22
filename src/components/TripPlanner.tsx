@@ -18,6 +18,8 @@ interface TripPlannerProps {
   formattedDateStr: string;
   isSimulated: boolean;
   onOpenTimeModal: () => void;
+  isHoliday?: boolean;
+  isTomorrowHoliday?: boolean;
 }
 
 export const TripPlanner: React.FC<TripPlannerProps> = ({
@@ -25,7 +27,9 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
   onOpenPosters,
   onSelectStationModal,
   currentTunisiaMinutes,
-  currentDayOfWeek
+  currentDayOfWeek,
+  isHoliday = false,
+  isTomorrowHoliday = false
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -50,7 +54,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
     copiedToast,
     handleSetReminder,
     handleShareTrip
-  } = useTripSearch(currentTunisiaMinutes, currentDayOfWeek, lang);
+  } = useTripSearch(currentTunisiaMinutes, currentDayOfWeek, lang, isHoliday, isTomorrowHoliday);
 
   return (
     <div className="space-y-6">

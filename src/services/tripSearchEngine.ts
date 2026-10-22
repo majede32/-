@@ -6,10 +6,11 @@ import {
   parseTimeToMinutes,
   isTrainRunningOnDay,
   TUNIS_CENTRAL_ID,
-  findStationById
+  findStationById,
+  formatMinutesToTime
 } from '../data/rfrData';
 import { TRANSLATIONS, Language } from '../data/translations';
-import { DirectTrip, InterlineTrip, AnyTrip, DaysBadgeInfo } from '../types/trips';
+import { DirectTrip, AnyTrip, DaysBadgeInfo } from '../types/trips';
 
 /**
  * Returns human-readable circulation days badge info.
@@ -41,7 +42,9 @@ export function findDirectTrips(
   targetLineId: string,
   baseMinutes: number,
   currentDayOfWeek: number,
-  lang: Language = 'ar'
+  lang: Language = 'ar',
+  isHoliday: boolean = false,
+  isTomorrowHoliday: boolean = false
 ): DirectTrip[] {
   const trips: DirectTrip[] = [];
   const line = LINES[targetLineId];
@@ -66,16 +69,18 @@ export function findDirectTrips(
       let remaining = depMinutes - baseMinutes;
       let isNextDay = false;
       let effectiveDayOfWeek = currentDayOfWeek;
+      let targetDayIsHoliday = isHoliday;
 
       if (remaining < 0) {
         // Departs tomorrow morning!
         remaining += 1440;
         isNextDay = true;
         effectiveDayOfWeek = (currentDayOfWeek + 1) % 7;
+        targetDayIsHoliday = isTomorrowHoliday;
       }
 
-      // Evaluate train eligibility against the ACTUAL day of departure (today or tomorrow)
-      const runsOnTargetDay = isTrainRunningOnDay(schedule.days, effectiveDayOfWeek);
+      // Evaluate train eligibility against the ACTUAL day of departure (today or tomorrow) and holiday status
+      const runsOnTargetDay = isTrainRunningOnDay(schedule.days, effectiveDayOfWeek, targetDayIsHoliday);
       if (!runsOnTargetDay) continue;
 
       // Build intermediate stops
@@ -135,103 +140,196 @@ export function findDirectTrips(
   return trips;
 }
 
+import {
+  ALL_BUS_TRIPS,
+  BUS_ESTIMATED_TRANSIT_MINUTES,
+  HUB_TRANSFER_BUFFER_MINUTES
+} from '../data/busConnectionData';
+import { MultimodalBusTrainTrip } from '../types/trips';
+
 /**
- * Pure function to calculate interline trips across different RFR lines via Tunis Central.
+ * Pure function to calculate multimodal trips between Tebourba (feeder bus 42/116) and Line D stations via Gobaa.
  */
-export function findInterlineTrips(
-  fromStation: Station,
-  toStation: Station,
+export function findMultimodalBusTrips(
+  fromStationId: string,
+  toStationId: string,
   currentTunisiaMinutes: number,
   currentDayOfWeek: number,
-  lang: Language = 'ar'
-): InterlineTrip[] {
-  const leg1Trips = findDirectTrips(
-    fromStation.id,
-    TUNIS_CENTRAL_ID,
-    fromStation.lineId,
-    currentTunisiaMinutes,
-    currentDayOfWeek,
-    lang
-  );
-  const interlineTrips: InterlineTrip[] = [];
+  lang: Language = 'ar',
+  isHoliday: boolean = false,
+  isTomorrowHoliday: boolean = false
+): MultimodalBusTrainTrip[] {
+  const fromStation = findStationById(fromStationId);
+  const toStation = findStationById(toStationId);
+  if (!fromStation || !toStation) return [];
 
-  for (const leg1 of leg1Trips.slice(0, 5)) {
-    const leg1ArrMinutes = parseTimeToMinutes(leg1.arrivalTime);
-    // Minimum 6 minutes walking buffer at Tunis central station
-    const minTransferDepMinutes = leg1ArrMinutes + 6;
+  const trips: MultimodalBusTrainTrip[] = [];
 
-    // Leg 2: TUNIS_CENTRAL_ID -> toStation on toStation.lineId
-    const leg2Candidates = findDirectTrips(
-      TUNIS_CENTRAL_ID,
-      toStation.id,
-      toStation.lineId,
-      minTransferDepMinutes,
-      currentDayOfWeek,
-      lang
-    );
+  // Direction 1: Tebourba -> Gobaa (Bus) -> Line D Station (Train)
+  if (fromStationId === 'tebourba_bus' && toStationId !== 'tebourba_bus') {
+    const hubStation = findStationById('gobaa') || fromStation;
+    for (const bus of ALL_BUS_TRIPS) {
+      const busDepM = parseTimeToMinutes(bus.departureTime);
+      const busArrGobaaM = busDepM + BUS_ESTIMATED_TRANSIT_MINUTES;
+      const trainMinDepM = busArrGobaaM + HUB_TRANSFER_BUFFER_MINUTES;
 
-    if (leg2Candidates.length > 0) {
-      const leg2 = leg2Candidates[0];
-      const leg2DepMinutes = parseTimeToMinutes(leg2.departureTime);
-      let transferWait = leg2DepMinutes - leg1ArrMinutes;
-      if (transferWait < 0) transferWait += 1440;
+      // Find trains from Gobaa to toStationId
+      const connectingTrains = findDirectTrips(
+        'gobaa',
+        toStationId,
+        'D',
+        trainMinDepM,
+        currentDayOfWeek,
+        lang,
+        isHoliday,
+        isTomorrowHoliday
+      );
 
-      const totalDuration = leg1.durationMinutes + transferWait + leg2.durationMinutes;
+      if (connectingTrains.length > 0) {
+        const trainTrip = connectingTrains[0];
+        const trainDepM = parseTimeToMinutes(trainTrip.departureTime);
+        const transferWait = trainDepM - busArrGobaaM;
+        const totalDuration = BUS_ESTIMATED_TRANSIT_MINUTES + transferWait + trainTrip.durationMinutes;
 
-      interlineTrips.push({
-        type: 'interline',
-        originStation: fromStation,
-        destinationStation: toStation,
-        leg1,
-        leg2,
-        transferWaitMinutes: transferWait,
-        totalDurationMinutes: totalDuration,
-        remainingMinutes: leg1.remainingMinutes,
-        departureTime: leg1.departureTime,
-        arrivalTime: leg2.arrivalTime,
-        isNextDay: leg1.isNextDay
-      });
+        let remaining = busDepM - currentTunisiaMinutes;
+        let isNextDay = false;
+        if (remaining < 0) {
+          remaining += 1440;
+          isNextDay = true;
+        }
+
+        trips.push({
+          type: 'multimodal_bus',
+          direction: 'tebourba_to_tunis',
+          busLine: bus.line,
+          busDeparture: bus.departureTime,
+          busArrival: formatMinutesToTime(busArrGobaaM),
+          transferStation: hubStation,
+          transferWaitMinutes: Math.max(0, transferWait),
+          trainTrip,
+          departureTime: bus.departureTime,
+          arrivalTime: trainTrip.arrivalTime,
+          durationMinutes: totalDuration,
+          remainingMinutes: remaining,
+          originStation: fromStation,
+          destinationStation: toStation,
+          isNextDay,
+          dayBadgeText: `حافلة ${bus.line} + قطار D`
+        });
+      }
     }
   }
 
-  interlineTrips.sort((a, b) => a.remainingMinutes - b.remainingMinutes);
-  return interlineTrips;
+  // Direction 2: Line D Station (Train) -> Gobaa -> Tebourba (Bus return)
+  if (fromStationId !== 'tebourba_bus' && toStationId === 'tebourba_bus') {
+    const hubStation = findStationById('gobaa') || toStation;
+    const returnBuses = ALL_BUS_TRIPS.filter((b) => Boolean(b.returnTime));
+
+    for (const bus of returnBuses) {
+      const busDepGobaaM = parseTimeToMinutes(bus.returnTime!);
+      const latestTrainArrivalAtGobaaM = busDepGobaaM - 4;
+
+      // Find inbound trains from fromStationId to gobaa
+      const candidateTrains = findDirectTrips(
+        fromStationId,
+        'gobaa',
+        'D',
+        Math.max(0, latestTrainArrivalAtGobaaM - 90),
+        currentDayOfWeek,
+        lang,
+        isHoliday,
+        isTomorrowHoliday
+      ).filter((t) => {
+        const arrM = parseTimeToMinutes(t.arrivalTime);
+        return arrM <= latestTrainArrivalAtGobaaM && arrM >= latestTrainArrivalAtGobaaM - 45;
+      }).sort((a, b) => parseTimeToMinutes(b.arrivalTime) - parseTimeToMinutes(a.arrivalTime));
+
+      if (candidateTrains.length > 0) {
+        const trainTrip = candidateTrains[0];
+        const trainArrM = parseTimeToMinutes(trainTrip.arrivalTime);
+        const transferWait = busDepGobaaM - trainArrM;
+        const trainDuration = trainTrip.durationMinutes;
+        const totalDuration = trainDuration + transferWait + BUS_ESTIMATED_TRANSIT_MINUTES;
+
+        const trainDepM = parseTimeToMinutes(trainTrip.departureTime);
+        let remaining = trainDepM - currentTunisiaMinutes;
+        let isNextDay = false;
+        if (remaining < 0) {
+          remaining += 1440;
+          isNextDay = true;
+        }
+
+        const busArrTebourbaM = busDepGobaaM + BUS_ESTIMATED_TRANSIT_MINUTES;
+
+        trips.push({
+          type: 'multimodal_bus',
+          direction: 'tunis_to_tebourba',
+          busLine: bus.line,
+          busDeparture: bus.returnTime!,
+          busArrival: formatMinutesToTime(busArrTebourbaM),
+          transferStation: hubStation,
+          transferWaitMinutes: Math.max(0, transferWait),
+          trainTrip,
+          departureTime: trainTrip.departureTime,
+          arrivalTime: formatMinutesToTime(busArrTebourbaM),
+          durationMinutes: totalDuration,
+          remainingMinutes: remaining,
+          originStation: fromStation,
+          destinationStation: toStation,
+          isNextDay,
+          dayBadgeText: `قطار D + حافلة ${bus.line}`
+        });
+      }
+    }
+  }
+
+  trips.sort((a, b) => a.remainingMinutes - b.remainingMinutes);
+  return trips;
 }
 
 /**
- * Master query function deciding between direct or interline trips.
+ * Master query function returning direct Line D trips or Tebourba feeder bus connections.
  */
 export function searchTrips(
   fromStationId: string,
   toStationId: string,
   currentTunisiaMinutes: number,
   currentDayOfWeek: number,
-  lang: Language = 'ar'
+  lang: Language = 'ar',
+  isHoliday: boolean = false,
+  isTomorrowHoliday: boolean = false
 ): AnyTrip[] {
+  if (fromStationId === toStationId) return [];
+
+  // Multimodal Bus-Train connections
+  if (fromStationId === 'tebourba_bus' || toStationId === 'tebourba_bus') {
+    return findMultimodalBusTrips(
+      fromStationId,
+      toStationId,
+      currentTunisiaMinutes,
+      currentDayOfWeek,
+      lang,
+      isHoliday,
+      isTomorrowHoliday
+    );
+  }
+
   const fromStation = findStationById(fromStationId);
   const toStation = findStationById(toStationId);
 
   if (!fromStation || !toStation) return [];
+  if (fromStation.lineId !== toStation.lineId) return [];
 
-  const isCrossLine = fromStation.lineId !== toStation.lineId;
-  if (!isCrossLine) {
-    return findDirectTrips(
-      fromStationId,
-      toStationId,
-      fromStation.lineId,
-      currentTunisiaMinutes,
-      currentDayOfWeek,
-      lang
-    );
-  } else {
-    return findInterlineTrips(
-      fromStation,
-      toStation,
-      currentTunisiaMinutes,
-      currentDayOfWeek,
-      lang
-    );
-  }
+  return findDirectTrips(
+    fromStationId,
+    toStationId,
+    fromStation.lineId,
+    currentTunisiaMinutes,
+    currentDayOfWeek,
+    lang,
+    isHoliday,
+    isTomorrowHoliday
+  );
 }
 
 /**

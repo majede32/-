@@ -21,11 +21,10 @@ export const FollowingTripsList: React.FC<FollowingTripsListProps> = ({ trips, l
 
       <div className="space-y-2.5">
         {trips.map((ft, idx) => {
-          const trainLabel =
-            ft.type === 'direct'
-              ? ft.schedule.trainNumber
-              : `${ft.leg1.schedule.trainNumber} ➔ ${ft.leg2.schedule.trainNumber}`;
-          const duration = ft.type === 'direct' ? ft.durationMinutes : ft.totalDurationMinutes;
+          const trainLabel = ft.type === 'direct'
+            ? `${t.train} ${ft.schedule.trainNumber}`
+            : `حافلة ${ft.busLine} + قطار ${ft.trainTrip.schedule.trainNumber}`;
+          const duration = ft.durationMinutes;
 
           return (
             <div
@@ -39,9 +38,7 @@ export const FollowingTripsList: React.FC<FollowingTripsListProps> = ({ trips, l
                   <span dir="ltr">{ft.arrivalTime}</span>
                 </div>
                 <div className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5 truncate">
-                  <span>
-                    {t.train} {trainLabel}
-                  </span>
+                  <span>{trainLabel}</span>
                   <span>·</span>
                   <span>{duration} {lang === 'ar' ? 'دق' : 'min'}</span>
                 </div>
@@ -51,9 +48,13 @@ export const FollowingTripsList: React.FC<FollowingTripsListProps> = ({ trips, l
                 <span className="text-xs sm:text-sm font-bold text-amber-700 block font-mono tabular-nums">
                   {t.in} {formatRemainingTime(ft.remainingMinutes, lang)}
                 </span>
-                {ft.type === 'direct' && (
+                {ft.type === 'direct' ? (
                   <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate max-w-[120px]">
                     {getDaysBadgeInfo(ft.schedule.days, lang).short}
+                  </span>
+                ) : (
+                  <span className="text-[9px] sm:text-[10px] text-emerald-700 font-bold block truncate max-w-[120px]">
+                    ترابط حافلة طبربة
                   </span>
                 )}
               </div>

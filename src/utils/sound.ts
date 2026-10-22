@@ -50,12 +50,6 @@ export function playRailwayChime(): void {
  * Builds the official text spoken in station announcements in clear English
  */
 export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
-  const isDirect = trip.type === 'direct';
-  const trainNum = isDirect
-    ? trip.schedule.trainNumber
-    : `${trip.leg1.schedule.trainNumber} and ${trip.leg2.schedule.trainNumber}`;
-
-  // Use Latin station names for fluent and natural English TTS pronunciation
   const origin = trip.originStation.nameFr;
   const dest = trip.destinationStation.nameFr;
   const depTime = trip.departureTime;
@@ -66,11 +60,12 @@ export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
       ? 'departing now from the platform'
       : `departing in ${remaining} minute${remaining > 1 ? 's' : ''}`;
 
-  if (isDirect) {
-    return `Attention please. Train number ${trainNum}, from ${origin} to ${dest}, will depart at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
+  if (trip.type === 'multimodal_bus') {
+    return `Attention please. Combined journey with feeder bus line ${trip.busLine} and RFR train, from ${origin} to ${dest}, departing at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
   }
 
-  return `Attention please. Connection from ${origin} to ${dest}, with transfer at Tunis Barcelona Central. First train number ${trip.leg1.schedule.trainNumber} departs at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
+  const trainNum = trip.schedule.trainNumber;
+  return `Attention please. Train number ${trainNum}, from ${origin} to ${dest}, will depart at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
 }
 
 /**

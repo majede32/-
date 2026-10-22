@@ -33,7 +33,7 @@ export type DaysType = '-' | 'A' | 'B' | 'C' | 'D';
 export interface TrainSchedule {
   trainNumber: string;
   lineId: string;
-  direction: 'inbound' | 'outbound'; // outbound: from suburb to Tunis; inbound: from Tunis to suburb
+  direction: 'outbound' | 'inbound'; // outbound: Gobaa -> Tunis Central; inbound: Tunis Central -> Gobaa
   departureTime: string; // "HH:mm"
   arrivalTime: string; // "HH:mm"
   originStationId: string;
@@ -54,9 +54,9 @@ export const LINES: Record<string, LineInfo> = {
     nameAr: 'الخط D',
     nameFr: 'Ligne D',
     nameEn: 'Line D',
-    terminusAr: 'القباعة المدينة / منوبة',
-    terminusFr: 'Gobaa Ville',
-    terminusEn: 'Gobaa Ville',
+    terminusAr: 'القباعة المدينة ⇄ تونس (ساحة برشلونة)',
+    terminusFr: 'Gobaa Ville ⇄ Tunis Barcelone',
+    terminusEn: 'Gobaa Ville ⇄ Tunis Central',
     color: 'orange',
     bgHex: '#ea580c',
     textHex: '#c2410c',
@@ -76,91 +76,30 @@ export const LINES: Record<string, LineInfo> = {
       { id: 'saida_manoubia_d', nameAr: 'السيدة المنوبية', nameFr: 'Saïda Manoubia', nameEn: 'Saida Manoubia', lineId: 'D', order: 9, connections: ['Metro 1, 6'] },
       { id: TUNIS_CENTRAL_ID, nameAr: 'تونس (محطة برشلونة)', nameFr: 'Tunis (Place Barcelone)', nameEn: 'Tunis Central', lineId: 'D', order: 10, connections: ['Metro 1..6', 'SNCFT', 'TGM'], facilities: ['Guichet', 'PMR', 'Parking'] }
     ]
-  },
-  E: {
-    id: 'E',
-    code: 'E',
-    nameAr: 'الخط E',
-    nameFr: 'Ligne E',
-    nameEn: 'Line E',
-    terminusAr: 'بوقطفة / سيدي حسين',
-    terminusFr: 'Bougatfa',
-    terminusEn: 'Bougatfa',
-    color: 'emerald',
-    bgHex: '#10b981',
-    textHex: '#059669',
-    borderHex: '#10b981',
-    badgeBg: 'bg-emerald-600',
-    badgeText: 'text-emerald-700',
-    activeBorder: 'border-emerald-500 ring-emerald-500/30',
-    stations: [
-      { id: 'bougatfa', nameAr: 'بوقطفة', nameFr: 'Bougatfa', nameEn: 'Bougatfa', lineId: 'E', order: 1, connections: ['Bus'], facilities: ['Guichet', 'Parking'] },
-      { id: 'al_hrairiya', nameAr: 'الحرارية', nameFr: 'Al Hrairiya', nameEn: 'Al Hrairiya', lineId: 'E', order: 2, connections: ['Bus'] },
-      { id: 'ezzouhour', nameAr: 'الزهور', nameFr: 'Ezzouhour', nameEn: 'Ezzouhour', lineId: 'E', order: 3 },
-      { id: 'ettayarane', nameAr: 'الطيران', nameFr: 'Ettayarane', nameEn: 'Ettayarane', lineId: 'E', order: 4 },
-      { id: 'ennajah', nameAr: 'النجاح', nameFr: 'Ennajah', nameEn: 'Ennajah', lineId: 'E', order: 5 },
-      { id: 'saida_manoubia_e', nameAr: 'السيدة المنوبية', nameFr: 'Saïda Manoubia', nameEn: 'Saida Manoubia', lineId: 'E', order: 6, connections: ['Metro 1, 6'] },
-      { id: TUNIS_CENTRAL_ID, nameAr: 'تونس (محطة برشلونة)', nameFr: 'Tunis (Place Barcelone)', nameEn: 'Tunis Central', lineId: 'E', order: 7, connections: ['Metro 1..6', 'SNCFT', 'TGM'], facilities: ['Guichet', 'PMR'] }
-    ]
-  },
-  A: {
-    id: 'A',
-    code: 'A',
-    nameAr: 'الخط A',
-    nameFr: 'Ligne A',
-    nameEn: 'Line A',
-    terminusAr: 'الرياض / برج السدرية',
-    terminusFr: 'Erriadh',
-    terminusEn: 'Erriadh',
-    color: 'blue',
-    bgHex: '#2563eb',
-    textHex: '#1d4ed8',
-    borderHex: '#3b82f6',
-    badgeBg: 'bg-blue-600',
-    badgeText: 'text-blue-700',
-    activeBorder: 'border-blue-500 ring-blue-500/30',
-    stations: [
-      { id: TUNIS_CENTRAL_ID, nameAr: 'تونس (محطة برشلونة)', nameFr: 'Tunis (Place Barcelone)', nameEn: 'Tunis Central', lineId: 'A', order: 1, connections: ['Metro 1..6', 'SNCFT', 'TGM'], facilities: ['Guichet', 'PMR'] },
-      { id: 'jebel_jelloud', nameAr: 'جبل الجلود', nameFr: 'Jebel Jelloud', nameEn: 'Jebel Jelloud', lineId: 'A', order: 2, connections: ['Metro 1, 6'] },
-      { id: 'megrine_riadh', nameAr: 'مقرين الرياض', nameFr: 'Megrine Riadh', nameEn: 'Megrine Riadh', lineId: 'A', order: 3 },
-      { id: 'megrine', nameAr: 'مقرين', nameFr: 'Megrine', nameEn: 'Megrine', lineId: 'A', order: 4 },
-      { id: 'sidi_rezig', nameAr: 'سيدي رزيق', nameFr: 'Sidi Rezig', nameEn: 'Sidi Rezig', lineId: 'A', order: 5 },
-      { id: 'rades', nameAr: 'رادس', nameFr: 'Rades', nameEn: 'Rades', lineId: 'A', order: 6, connections: ['Bus'], facilities: ['Guichet'] },
-      { id: 'lycee_rades', nameAr: 'معهد رادس', nameFr: 'Lycee Rades', nameEn: 'Lycee Rades', lineId: 'A', order: 7 },
-      { id: 'rades_meliane', nameAr: 'رادس مليان', nameFr: 'Rades Meliane', nameEn: 'Rades Meliane', lineId: 'A', order: 8 },
-      { id: 'ez_zahra', nameAr: 'الزهراء', nameFr: 'Ez-Zahra', nameEn: 'Ez-Zahra', lineId: 'A', order: 9, facilities: ['Guichet'] },
-      { id: 'bou_kornine', nameAr: 'بوقرنين', nameFr: 'Bou Kornine', nameEn: 'Bou Kornine', lineId: 'A', order: 10 },
-      { id: 'hammam_lif', nameAr: 'حمام الأنف', nameFr: 'Hammam Lif', nameEn: 'Hammam Lif', lineId: 'A', order: 11, connections: ['Bus'], facilities: ['Guichet'] },
-      { id: 'arret_du_stade', nameAr: 'محطة الملعب', nameFr: 'Arret du Stade', nameEn: 'Stadium Stop', lineId: 'A', order: 12 },
-      { id: 'tahar_sfar', nameAr: 'طاهر صفر', nameFr: 'Tahar Sfar', nameEn: 'Tahar Sfar', lineId: 'A', order: 13 },
-      { id: 'hammam_chatt', nameAr: 'حمام الشط', nameFr: 'Hammam Chatt', nameEn: 'Hammam Chatt', lineId: 'A', order: 14 },
-      { id: 'bir_el_bey', nameAr: 'بئر الباي', nameFr: 'Bir El Bey', nameEn: 'Bir El Bey', lineId: 'A', order: 15 },
-      { id: 'borj_cedria', nameAr: 'برج السدرية', nameFr: 'Borj Cedria', nameEn: 'Borj Cedria', lineId: 'A', order: 16, connections: ['Bus'] },
-      { id: 'erriadh', nameAr: 'الرياض', nameFr: 'Erriadh', nameEn: 'Erriadh', lineId: 'A', order: 17, facilities: ['Guichet', 'Parking'] }
-    ]
   }
 };
 
 /**
- * Validates whether a train operates on a given day-of-week.
+ * Validates whether a train operates on a given day-of-week and holiday status.
  * @param days Circulation flag: '-', 'A', 'B', 'C', 'D'
  * @param dayOfWeek 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+ * @param isHoliday true if target date is an official Tunisian public holiday
  */
-export function isTrainRunningOnDay(days: DaysType, dayOfWeek: number): boolean {
-  const isSunday = dayOfWeek === 0;
-  const isSaturday = dayOfWeek === 6;
-  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+export function isTrainRunningOnDay(days: DaysType, dayOfWeek: number, isHoliday: boolean = false): boolean {
+  const isSundayOrHoliday = dayOfWeek === 0 || isHoliday;
+  const isSaturday = dayOfWeek === 6 && !isHoliday;
+  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5 && !isHoliday;
 
   switch (days) {
     case '-':
       // Tous les jours / كامل أيام الأسبوع
       return true;
     case 'A':
-      // Sauf les Dimanches et Fêtes / كامل أيام الأسبوع ما عدا الأحد والأعياد (يوم السبت يعمل)
-      return !isSunday;
+      // Sauf les Dimanches et Fêtes / كامل أيام الأسبوع ما عدا الأحد والأعياد
+      return !isSundayOrHoliday;
     case 'B':
       // Dimanches et Fêtes seulement / أيام الأحد والأعياد الرسمية فقط
-      return isSunday;
+      return isSundayOrHoliday;
     case 'C':
       // Sauf Samedi, Dimanche et Fêtes / أيام العمل (ما عدا السبت والأحد والأعياد)
       return isWeekday;
@@ -184,48 +123,8 @@ export function parseTimeToMinutes(timeStr: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
-// Generate Line E (Bougatfa <-> Tunis)
-// Outbound: Bougatfa(0), Al Hrairiya(+2), Ezzouhour(+4), Ettayarane(+7), Ennajah(+9), Saïda Manoubia(+11), Tunis(+15)
-const lineE_outbound_data: [string, string, DaysType][] = [
-  ['402', '05:00', '-'], ['404', '05:20', '-'], ['406', '05:40', 'A'], ['408', '05:50', 'B'],
-  ['410', '06:00', 'A'], ['412', '06:20', '-'], ['414', '06:40', 'A'], ['416', '06:50', 'B'],
-  ['418', '07:00', 'A'], ['420', '07:20', '-'], ['422', '07:40', 'A'], ['424', '07:50', 'B'],
-  ['426', '08:00', 'A'], ['428', '08:20', '-'], ['430', '08:40', 'A'], ['432', '08:50', 'B'],
-  ['434', '09:00', 'A'], ['436', '09:20', '-'], ['438', '09:40', 'A'], ['440', '09:50', 'B'],
-  ['442', '10:00', 'A'], ['444', '10:20', '-'], ['446', '10:40', 'A'], ['448', '10:50', 'B'],
-  ['450', '11:00', 'A'], ['452', '11:20', '-'], ['454', '11:40', 'A'], ['456', '11:50', 'B'],
-  ['458', '12:00', 'A'], ['460', '12:20', '-'], ['462', '12:40', 'A'], ['464', '12:50', 'B'],
-  ['466', '13:00', 'A'], ['468', '13:20', '-'], ['470', '13:40', 'A'], ['472', '13:50', 'B'],
-  ['474', '14:00', 'A'], ['476', '14:20', '-'], ['478', '14:40', 'A'], ['480', '14:50', 'B'],
-  ['482', '15:00', 'A'], ['484', '15:20', '-'], ['486', '15:40', 'A'], ['488', '15:50', 'B'],
-  ['490', '16:00', 'A'], ['492', '16:20', '-'], ['494', '16:40', 'A'], ['496', '16:50', 'B'],
-  ['498', '17:00', 'A'], ['500', '17:20', '-'], ['502', '17:40', 'A'], ['504', '17:50', 'B'],
-  ['506', '18:00', 'A'], ['508', '18:20', '-'], ['510', '18:50', '-'], ['512', '19:20', '-'],
-  ['514', '19:50', '-'], ['516', '20:20', '-'], ['518', '20:50', '-'], ['520', '21:20', '-']
-];
-
-// Inbound: Tunis(0), Saïda Manoubia(+4), Ennajah(+6), Ettayarane(+9), Ezzouhour(+11), Al Hrairiya(+13), Bougatfa(+15)
-const lineE_inbound_data: [string, string, DaysType][] = [
-  ['401', '04:40', '-'], ['403', '05:00', '-'], ['405', '05:20', 'A'], ['407', '05:25', 'B'],
-  ['409', '05:40', 'A'], ['411', '06:00', '-'], ['413', '06:20', 'A'], ['415', '06:30', 'B'],
-  ['417', '06:40', 'A'], ['419', '07:00', '-'], ['421', '07:20', 'A'], ['423', '07:25', 'B'],
-  ['425', '07:40', 'A'], ['427', '08:00', '-'], ['429', '08:20', 'A'], ['431', '08:25', 'B'],
-  ['433', '08:40', 'A'], ['435', '09:00', '-'], ['437', '09:20', 'A'], ['439', '09:25', 'B'],
-  ['441', '09:40', 'A'], ['443', '10:00', '-'], ['445', '10:20', 'A'], ['447', '10:30', 'B'],
-  ['449', '10:40', 'A'], ['451', '11:00', '-'], ['453', '11:20', 'A'], ['455', '11:30', 'B'],
-  ['457', '11:40', 'A'], ['459', '12:00', '-'], ['461', '12:20', 'A'], ['463', '12:30', 'B'],
-  ['465', '12:40', 'A'], ['467', '13:00', '-'], ['469', '13:20', 'A'], ['471', '13:30', 'B'],
-  ['473', '13:40', 'A'], ['475', '14:00', '-'], ['477', '14:20', 'A'], ['479', '14:30', 'B'],
-  ['481', '14:40', 'A'], ['483', '15:00', '-'], ['485', '15:20', 'A'], ['487', '15:30', 'B'],
-  ['489', '15:40', 'A'], ['491', '16:00', '-'], ['493', '16:20', 'A'], ['495', '16:30', 'B'],
-  ['497', '16:40', 'A'], ['499', '17:00', '-'], ['501', '17:20', 'A'], ['503', '17:30', 'B'],
-  ['505', '17:40', 'A'], ['507', '18:00', '-'], ['509', '18:30', '-'], ['511', '19:00', '-'],
-  ['513', '19:30', '-'], ['515', '20:00', '-'], ['517', '20:30', '-'], ['519', '21:00', '-']
-];
-
-// Generate Line D (Gobaa / Gobaa Ville <-> Tunis)
-// Outbound trains:
-// Train 636 exact poster times: Gobaa Ville 12:40, Gobaa 12:46, Les Orangers 12:48, Manouba 12:53, El Bortal 12:55, Le Bardo 13:00, Erraoudha 13:07, Mellassine 13:08, Saïda Manoubia 13:10, Tunis 13:14!
+// Line D Outbound: Gobaa / Gobaa Ville -> Tunis Central
+// Official SNCFT Winter 2026-2027 poster schedule
 const lineD_outbound_data: { train: string; depGobaa: string; days: DaysType; fromVille?: boolean; depVille?: string; arrTunis?: string }[] = [
   { train: '602', depGobaa: '05:15', days: 'A', fromVille: true, depVille: '05:10', arrTunis: '05:41' },
   { train: '604', depGobaa: '05:40', days: '-', fromVille: false, arrTunis: '06:07' },
@@ -244,7 +143,7 @@ const lineD_outbound_data: { train: string; depGobaa: string; days: DaysType; fr
   { train: '630', depGobaa: '11:05', days: '-', fromVille: false, arrTunis: '11:31' },
   { train: '632', depGobaa: '11:35', days: 'A', fromVille: false, arrTunis: '12:01' },
   { train: '634', depGobaa: '12:05', days: '-', fromVille: false, arrTunis: '12:31' },
-  { train: '636', depGobaa: '12:46', days: '-', fromVille: true, depVille: '12:40', arrTunis: '13:14' }, // Accurate official poster time!
+  { train: '636', depGobaa: '12:46', days: '-', fromVille: true, depVille: '12:40', arrTunis: '13:14' },
   { train: '638', depGobaa: '13:05', days: 'A', fromVille: false, arrTunis: '13:31' },
   { train: '640', depGobaa: '13:35', days: '-', fromVille: false, arrTunis: '14:01' },
   { train: '642', depGobaa: '14:05', days: '-', fromVille: false, arrTunis: '14:31' },
@@ -266,7 +165,7 @@ const lineD_outbound_data: { train: string; depGobaa: string; days: DaysType; fr
   { train: '674', depGobaa: '22:00', days: 'A', fromVille: true, depVille: '21:55', arrTunis: '22:26' }
 ];
 
-// Inbound Line D
+// Line D Inbound: Tunis Central -> Gobaa / Gobaa Ville
 const lineD_inbound_data: { train: string; depTunis: string; days: DaysType; toVille?: boolean; arrGobaa?: string; arrVille?: string }[] = [
   { train: '601', depTunis: '04:30', days: 'A', toVille: true, arrGobaa: '04:56', arrVille: '05:00' },
   { train: '603', depTunis: '04:55', days: '-', toVille: true, arrGobaa: '05:21', arrVille: '05:25' },
@@ -306,91 +205,8 @@ const lineD_inbound_data: { train: string; depTunis: string; days: DaysType; toV
   { train: '671', depTunis: '21:20', days: 'A', toVille: true, arrGobaa: '21:46', arrVille: '21:50' }
 ];
 
-// Line A (Banlieue Sud: Erriadh <-> Tunis Central)
-const lineA_outbound_data: [string, string, DaysType][] = [
-  ['102', '04:30', 'A'], ['108', '05:00', '-'], ['110', '05:30', '-'], ['112', '05:45', 'A'],
-  ['116', '06:00', 'B'], ['118', '06:05', 'A'], ['120', '06:20', 'C'], ['124', '06:30', 'A'],
-  ['126', '06:45', 'A'], ['130', '07:00', 'A'], ['134', '07:20', 'A'], ['136', '07:30', 'B'],
-  ['138', '07:40', 'A'], ['140', '08:05', 'A'], ['142', '08:25', 'A'], ['144', '08:40', 'B'],
-  ['146', '08:55', 'A'], ['150', '09:05', 'B'], ['152', '09:30', '-'], ['156', '09:50', 'A'],
-  ['158', '10:00', 'B'], ['162', '10:10', 'A'], ['164', '10:30', 'A'], ['170', '10:50', 'A'],
-  ['172', '11:00', 'B'], ['174', '11:15', 'A'], ['178', '11:30', 'A'], ['180', '11:45', 'A'],
-  ['182', '12:00', 'A'], ['190', '12:35', 'A'], ['194', '12:50', 'A'], ['198', '13:05', 'A'],
-  ['200', '13:25', 'B'], ['204', '13:40', '-'], ['208', '14:00', 'A'], ['210', '14:30', 'A'],
-  ['212', '14:50', 'A'], ['214', '15:00', 'B'], ['216', '15:10', 'A'], ['218', '15:30', 'B'],
-  ['220', '15:40', 'A'], ['222', '15:55', 'A'], ['224', '16:00', 'B'], ['226', '16:15', 'A'],
-  ['228', '16:30', 'B'], ['230', '16:35', 'A'], ['232', '17:00', 'B'], ['234', '17:05', 'A'],
-  ['236', '17:25', 'A'], ['240', '17:40', 'A'], ['242', '18:10', 'A'], ['244', '18:40', 'A'],
-  ['246', '19:10', 'A'], ['248', '19:40', 'A'], ['250', '20:10', '-'], ['252', '20:40', 'A'],
-  ['254', '21:10', 'A'], ['256', '21:40', 'A'], ['258', '22:10', 'A']
-];
-
-const lineA_inbound_data: [string, string, DaysType][] = [
-  ['101', '04:30', 'A'], ['103', '05:00', '-'], ['105', '05:30', '-'], ['109', '05:50', 'A'],
-  ['111', '06:00', 'B'], ['115', '06:15', 'A'], ['117', '06:30', 'B'], ['119', '06:40', 'A'],
-  ['121', '07:00', 'A'], ['123', '07:15', 'A'], ['125', '07:30', 'D'], ['131', '07:45', 'A'],
-  ['133', '08:00', 'A'], ['135', '08:20', 'A'], ['137', '08:30', 'B'], ['139', '08:40', 'A'],
-  ['141', '09:00', 'A'], ['143', '09:20', 'A'], ['145', '09:30', 'B'], ['147', '09:40', 'A'],
-  ['149', '10:00', 'B'], ['153', '10:10', 'A'], ['155', '10:30', 'A'], ['157', '10:40', 'A'],
-  ['159', '11:00', 'B'], ['161', '11:20', 'A'], ['163', '11:30', 'B'], ['165', '11:40', 'A'],
-  ['167', '12:00', 'A'], ['169', '12:20', 'A'], ['171', '12:30', 'B'], ['173', '12:40', 'A'],
-  ['175', '12:55', 'A'], ['177', '13:20', 'A'], ['181', '13:30', 'B'], ['183', '13:45', 'A'],
-  ['185', '14:00', 'A'], ['189', '14:30', 'A'], ['193', '14:50', 'A'], ['195', '15:00', 'B'],
-  ['197', '15:10', 'A'], ['199', '15:30', 'B'], ['205', '16:00', 'A'], ['207', '16:20', 'A'],
-  ['209', '16:35', 'A'], ['211', '17:00', 'A'], ['213', '17:05', 'A'], ['215', '17:25', 'A'],
-  ['217', '17:35', 'B'], ['219', '17:45', 'A'], ['221', '18:00', 'B'], ['223', '18:05', 'A'],
-  ['225', '18:30', 'A'], ['229', '19:00', 'A'], ['231', '19:30', 'A'], ['233', '20:00', '-'],
-  ['235', '20:30', 'A'], ['239', '21:00', 'A'], ['241', '21:30', 'A'], ['243', '22:00', 'A']
-];
-
 export function getAllSchedules(): TrainSchedule[] {
   const result: TrainSchedule[] = [];
-
-  // Line E Outbound (Bougatfa -> Tunis Central)
-  const e_out_station_ids = ['bougatfa', 'al_hrairiya', 'ezzouhour', 'ettayarane', 'ennajah', 'saida_manoubia_e', TUNIS_CENTRAL_ID];
-  const e_out_offsets = [0, 2, 4, 7, 9, 11, 15];
-
-  for (const [train, dep, days] of lineE_outbound_data) {
-    const depM = parseTimeToMinutes(dep);
-    const stops = e_out_station_ids.map((stId, idx) => ({
-      stationId: stId,
-      time: formatMinutesToTime(depM + e_out_offsets[idx])
-    }));
-    result.push({
-      trainNumber: train,
-      lineId: 'E',
-      direction: 'outbound',
-      departureTime: stops[0].time,
-      arrivalTime: stops[stops.length - 1].time,
-      originStationId: stops[0].stationId,
-      destinationStationId: stops[stops.length - 1].stationId,
-      days,
-      stops
-    });
-  }
-
-  // Line E Inbound (Tunis Central -> Bougatfa)
-  const e_in_station_ids = [TUNIS_CENTRAL_ID, 'saida_manoubia_e', 'ennajah', 'ettayarane', 'ezzouhour', 'al_hrairiya', 'bougatfa'];
-  const e_in_offsets = [0, 4, 6, 9, 11, 13, 15];
-
-  for (const [train, dep, days] of lineE_inbound_data) {
-    const depM = parseTimeToMinutes(dep);
-    const stops = e_in_station_ids.map((stId, idx) => ({
-      stationId: stId,
-      time: formatMinutesToTime(depM + e_in_offsets[idx])
-    }));
-    result.push({
-      trainNumber: train,
-      lineId: 'E',
-      direction: 'inbound',
-      departureTime: stops[0].time,
-      arrivalTime: stops[stops.length - 1].time,
-      originStationId: stops[0].stationId,
-      destinationStationId: stops[stops.length - 1].stationId,
-      days,
-      stops
-    });
-  }
 
   // Line D Outbound (Gobaa / Gobaa Ville -> Tunis Central)
   for (const item of lineD_outbound_data) {
@@ -457,90 +273,38 @@ export function getAllSchedules(): TrainSchedule[] {
     });
   }
 
-  // Line A Outbound (Erriadh -> Tunis Central)
-  const a_out_offsets = [0, 5, 9, 11, 13, 16, 19, 21, 23, 25, 29, 32, 34, 36, 39, 41, 45];
-  const a_out_stations = [
-    'erriadh', 'borj_cedria', 'bir_el_bey', 'hammam_chatt', 'tahar_sfar',
-    'arret_du_stade', 'hammam_lif', 'bou_kornine', 'ez_zahra', 'rades_meliane',
-    'lycee_rades', 'rades', 'sidi_rezig', 'megrine', 'megrine_riadh', 'jebel_jelloud', TUNIS_CENTRAL_ID
-  ];
-
-  for (const [train, dep, days] of lineA_outbound_data) {
-    const depM = parseTimeToMinutes(dep);
-    const stops = a_out_stations.map((stId, idx) => ({
-      stationId: stId,
-      time: formatMinutesToTime(depM + a_out_offsets[idx])
-    }));
-    result.push({
-      trainNumber: train,
-      lineId: 'A',
-      direction: 'outbound',
-      departureTime: stops[0].time,
-      arrivalTime: stops[stops.length - 1].time,
-      originStationId: stops[0].stationId,
-      destinationStationId: stops[stops.length - 1].stationId,
-      days,
-      stops
-    });
-  }
-
-  // Line A Inbound (Tunis Central -> Erriadh)
-  const a_in_offsets = [0, 4, 6, 8, 10, 12, 15, 18, 20, 22, 24, 26, 28, 30, 32, 36, 40];
-  const a_in_stations = [
-    TUNIS_CENTRAL_ID, 'jebel_jelloud', 'megrine_riadh', 'megrine', 'sidi_rezig',
-    'rades', 'lycee_rades', 'rades_meliane', 'ez_zahra', 'bou_kornine',
-    'hammam_lif', 'arret_du_stade', 'tahar_sfar', 'hammam_chatt', 'bir_el_bey', 'borj_cedria', 'erriadh'
-  ];
-
-  for (const [train, dep, days] of lineA_inbound_data) {
-    const depM = parseTimeToMinutes(dep);
-    const stops = a_in_stations.map((stId, idx) => ({
-      stationId: stId,
-      time: formatMinutesToTime(depM + a_in_offsets[idx])
-    }));
-    result.push({
-      trainNumber: train,
-      lineId: 'A',
-      direction: 'inbound',
-      departureTime: stops[0].time,
-      arrivalTime: stops[stops.length - 1].time,
-      originStationId: stops[0].stationId,
-      destinationStationId: stops[stops.length - 1].stationId,
-      days,
-      stops
-    });
-  }
-
   return result;
 }
 
 export const ALL_SCHEDULES = getAllSchedules();
 
-// Get all unique stations across the whole network
+// Get all unique stations across Line D
 export function getAllNetworkStations(): { station: Station; line: LineInfo }[] {
   const result: { station: Station; line: LineInfo }[] = [];
-  const seenIds = new Set<string>();
-
-  for (const line of Object.values(LINES)) {
-    for (const station of line.stations) {
-      if (!seenIds.has(station.id)) {
-        seenIds.add(station.id);
-        result.push({ station, line });
-      }
-    }
+  const line = LINES.D;
+  for (const station of line.stations) {
+    result.push({ station, line });
   }
   return result;
 }
 
+export const TEBOURBA_BUS_STATION: Station = {
+  id: 'tebourba_bus',
+  nameAr: 'طبربة (ترابط الحافلة 42/116)',
+  nameFr: 'Tébourba (Bus 42/116)',
+  nameEn: 'Tebourba (Bus 42/116)',
+  lineId: 'D',
+  order: 0,
+  connections: ['حافلة 42', 'حافلة 116 (الترابط مع قطار RFR بالقباعة)'],
+  facilities: ['محطة حافلات ترابط طبربة']
+};
+
 export function findStationById(id: string): Station | undefined {
-  for (const line of Object.values(LINES)) {
-    const found = line.stations.find((s) => s.id === id);
-    if (found) return found;
-  }
-  return undefined;
+  if (id === 'tebourba_bus') return TEBOURBA_BUS_STATION;
+  return LINES.D.stations.find((s) => s.id === id);
 }
 
-// Fare calculation system
+// Fare calculation system for Line D (up to 4 fare sections)
 export interface FareTier {
   sections: number;
   singlePriceDT: number;
@@ -560,6 +324,6 @@ export function calculateFare(fromOrder: number, toOrder: number): FareTier {
   const diff = Math.abs(fromOrder - toOrder);
   if (diff <= 2) return FARE_DATA[0];
   if (diff <= 5) return FARE_DATA[1];
-  if (diff <= 9) return FARE_DATA[2];
+  if (diff <= 7) return FARE_DATA[2];
   return FARE_DATA[3];
 }

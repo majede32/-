@@ -14,21 +14,26 @@ export interface DirectTrip {
   dayBadgeText: string;
 }
 
-export interface InterlineTrip {
-  type: 'interline';
-  originStation: Station;
-  destinationStation: Station;
-  leg1: DirectTrip;
-  leg2: DirectTrip;
+export interface MultimodalBusTrainTrip {
+  type: 'multimodal_bus';
+  direction: 'tebourba_to_tunis' | 'tunis_to_tebourba';
+  busLine: '42' | '116';
+  busDeparture: string;
+  busArrival: string;
+  transferStation: Station;
   transferWaitMinutes: number;
-  totalDurationMinutes: number;
-  remainingMinutes: number;
+  trainTrip: DirectTrip;
   departureTime: string;
   arrivalTime: string;
+  durationMinutes: number;
+  remainingMinutes: number;
+  originStation: Station;
+  destinationStation: Station;
   isNextDay: boolean;
+  dayBadgeText: string;
 }
 
-export type AnyTrip = DirectTrip | InterlineTrip;
+export type AnyTrip = DirectTrip | MultimodalBusTrainTrip;
 
 export interface DaysBadgeInfo {
   short: string;

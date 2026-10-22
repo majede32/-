@@ -8,7 +8,6 @@ import {
 } from '../data/rfrData';
 import {
   findDirectTrips,
-  findInterlineTrips,
   searchTrips
 } from '../services/tripSearchEngine';
 import { checkTunisianHoliday } from '../utils/tunisianHolidays';
@@ -48,6 +47,14 @@ describe('RFR Timetable Days Circulation Eligibility', () => {
     expect(isTrainRunningOnDay('D', 2)).toBe(true);  // Tuesday
     expect(isTrainRunningOnDay('D', 5)).toBe(true);  // Friday
   });
+
+  it('respects holiday status for circulation codes A, B, and C', () => {
+    // On Monday (day 1) during an official holiday
+    expect(isTrainRunningOnDay('A', 1, true)).toBe(false); // Code A does not run on holidays
+    expect(isTrainRunningOnDay('B', 1, true)).toBe(true);  // Code B runs on holidays
+    expect(isTrainRunningOnDay('C', 1, true)).toBe(false); // Code C does not run on holidays
+    expect(isTrainRunningOnDay('-', 1, true)).toBe(true);  // Code - runs every day
+  });
 });
 
 describe('Midnight and Next-Day Departure Logic', () => {
@@ -78,33 +85,30 @@ describe('Train 636 Exact Schedule Verification', () => {
   });
 });
 
-describe('Interline Transfers Across Lines', () => {
-  it('connects Line D to Line A via Tunis Central with walking buffer', () => {
-    const fromStation = findStationById('gobaa');
-    const toStation = findStationById('hammam_lif');
-
-    expect(fromStation).toBeDefined();
-    expect(toStation).toBeDefined();
-
-    // Query on Monday at 08:00 (480 minutes)
-    const trips = findInterlineTrips(fromStation!, toStation!, 480, 1);
-    expect(trips.length).toBeGreaterThan(0);
-
-    const firstInterline = trips[0];
-    expect(firstInterline.type).toBe('interline');
-    expect(firstInterline.leg1.schedule.lineId).toBe('D');
-    expect(firstInterline.leg2.schedule.lineId).toBe('A');
-    expect(firstInterline.transferWaitMinutes).toBeGreaterThanOrEqual(6);
+describe('Line D Single-Line Architecture & Isolation', () => {
+  it('verifies Line D has 10 stations between Gobaa Ville and Tunis Central', () => {
+    const lineD = LINES['D'];
+    expect(lineD).toBeDefined();
+    expect(lineD.stations).toHaveLength(10);
+    expect(lineD.stations[0].id).toBe('gobaa_ville');
+    expect(lineD.stations[9].id).toBe(TUNIS_CENTRAL_ID);
   });
 
-  it('searchTrips automatically detects cross-line routes', () => {
-    const trips = searchTrips('gobaa', 'hammam_lif', 480, 1);
+  it('searchTrips between Line D stations returns valid direct trips with correct sorting', () => {
+    const trips = searchTrips('gobaa', TUNIS_CENTRAL_ID, 480, 1);
     expect(trips.length).toBeGreaterThan(0);
-    expect(trips[0].type).toBe('interline');
+    expect(trips[0].type).toBe('direct');
+    expect(trips[0].originStation.id).toBe('gobaa');
+    expect(trips[0].destinationStation.id).toBe(TUNIS_CENTRAL_ID);
+  });
+
+  it('safely returns empty array for queries referencing removed lines', () => {
+    const trips = searchTrips('gobaa', 'hammam_lif', 480, 1);
+    expect(trips).toEqual([]);
   });
 });
 
-describe('Tunisian Public Holidays Calendar', () => {
+describe('Tunisian Public Holidays Calendar and Engine Integration', () => {
   it('identifies Independence Day (March 20) as holiday', () => {
     const result = checkTunisianHoliday(2026, 3, 20);
     expect(result.isHoliday).toBe(true);
@@ -126,6 +130,25 @@ describe('Tunisian Public Holidays Calendar', () => {
   it('identifies ordinary business days as non-holidays', () => {
     const result = checkTunisianHoliday(2026, 11, 10);
     expect(result.isHoliday).toBe(false);
+  });
+
+  it('filters trips properly when query is performed on a holiday', () => {
+    // Normal Monday (day 1): trains with schedule code 'A' run today, 'B' does not
+    const normalMondayTrips = searchTrips('gobaa', TUNIS_CENTRAL_ID, 400, 1, 'ar', false);
+    // Holiday Monday (day 1): trains with schedule code 'A' should NOT run today, code 'B' SHOULD run today
+    const holidayMondayTrips = searchTrips('gobaa', TUNIS_CENTRAL_ID, 400, 1, 'ar', true);
+
+    const normalTodayHasCodeA = normalMondayTrips.filter((t) => !t.isNextDay).some((t) => t.type === 'direct' && t.schedule.days === 'A');
+    const normalTodayHasCodeB = normalMondayTrips.filter((t) => !t.isNextDay).some((t) => t.type === 'direct' && t.schedule.days === 'B');
+
+    const holidayTodayHasCodeA = holidayMondayTrips.filter((t) => !t.isNextDay).some((t) => t.type === 'direct' && t.schedule.days === 'A');
+    const holidayTodayHasCodeB = holidayMondayTrips.filter((t) => !t.isNextDay).some((t) => t.type === 'direct' && t.schedule.days === 'B');
+
+    expect(normalTodayHasCodeA).toBe(true);
+    expect(normalTodayHasCodeB).toBe(false);
+
+    expect(holidayTodayHasCodeA).toBe(false);
+    expect(holidayTodayHasCodeB).toBe(true);
   });
 });
 
@@ -158,7 +181,7 @@ describe('Dataset Integrity and Monotonicity Validation', () => {
     }
     expect(report.isValid).toBe(true);
     expect(report.errors).toHaveLength(0);
-    expect(report.stats.totalLines).toBe(3);
+    expect(report.stats.totalLines).toBe(1);
     expect(report.stats.totalSchedules).toBeGreaterThan(50);
   });
 });

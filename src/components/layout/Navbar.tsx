@@ -5,8 +5,8 @@ import { Train, Download, Smartphone } from 'lucide-react';
 interface NavbarProps {
   lang: Language;
   onSetLang: (lang: Language) => void;
-  activeTab: 'planner' | 'table' | 'map' | 'fares';
-  onSelectTab: (tab: 'planner' | 'table' | 'map' | 'fares') => void;
+  activeTab: 'planner' | 'table' | 'buses' | 'map' | 'fares';
+  onSelectTab: (tab: 'planner' | 'table' | 'buses' | 'map' | 'fares') => void;
   isInstallable: boolean;
   onInstall: () => void;
   onOpenDownloadModal: () => void;
@@ -57,6 +57,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             {t.tableTab}
+          </button>
+          <button
+            onClick={() => onSelectTab('buses')}
+            className={`hover:text-slate-900 transition-colors whitespace-nowrap pb-1 ${
+              activeTab === 'buses' ? 'text-emerald-600 border-b-2 border-emerald-500 font-black' : ''
+            }`}
+          >
+            {t.busTab}
           </button>
           <button
             onClick={() => onSelectTab('map')}
