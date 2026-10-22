@@ -162,6 +162,8 @@ export default function App() {
                 lang={lang}
                 currentTunisiaMinutes={tunisiaTimeInfo.totalMinutes}
                 currentDayOfWeek={tunisiaTimeInfo.dayOfWeek}
+                isHoliday={tunisiaTimeInfo.isHoliday}
+                isTomorrowHoliday={isTomorrowHoliday}
               />
             </Suspense>
           )}

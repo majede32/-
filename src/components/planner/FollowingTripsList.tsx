@@ -46,7 +46,7 @@ export const FollowingTripsList: React.FC<FollowingTripsListProps> = ({ trips, l
 
               <div className="text-end shrink-0">
                 <span className="text-xs sm:text-sm font-bold text-amber-700 block font-mono tabular-nums">
-                  {t.in} {formatRemainingTime(ft.remainingMinutes, lang)}
+                  {t.in} <bdi dir="ltr">{formatRemainingTime(ft.remainingMinutes, lang)}</bdi>
                 </span>
                 {ft.type === 'direct' ? (
                   <span className="text-[9px] sm:text-[10px] text-slate-500 block truncate max-w-[120px]">

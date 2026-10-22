@@ -149,6 +149,10 @@ import { MultimodalBusTrainTrip } from '../types/trips';
 
 /**
  * Pure function to calculate multimodal trips between Tebourba (feeder bus 42/116) and Line D stations via Gobaa.
+ * Strictly respects:
+ * 1. Bus operating schedule: Monday to Saturday only (no Sunday service).
+ * 2. Day-of-week and holiday circulation rules for connecting trains.
+ * 3. Departure countdowns to the first leg of travel.
  */
 export function findMultimodalBusTrips(
   fromStationId: string,
@@ -165,6 +169,55 @@ export function findMultimodalBusTrips(
 
   const trips: MultimodalBusTrainTrip[] = [];
 
+  // Helper to determine target day of week for bus departures
+  const getBusTargetDay = (busMinutes: number) => {
+    if (currentDayOfWeek === 0) {
+      // Sunday -> next departure is Monday
+      return {
+        targetDay: 1,
+        targetHoliday: isTomorrowHoliday,
+        remaining: (1440 - currentTunisiaMinutes) + busMinutes,
+        isNextDay: true
+      };
+    }
+    if (currentDayOfWeek === 6) {
+      // Saturday
+      if (busMinutes >= currentTunisiaMinutes) {
+        return {
+          targetDay: 6,
+          targetHoliday: isHoliday,
+          remaining: busMinutes - currentTunisiaMinutes,
+          isNextDay: false
+        };
+      } else {
+        // Saturday past evening -> jumps Sunday to Monday (+2 days)
+        return {
+          targetDay: 1,
+          targetHoliday: false,
+          remaining: (1440 - currentTunisiaMinutes) + 1440 + busMinutes,
+          isNextDay: true
+        };
+      }
+    }
+    // Monday to Friday
+    if (busMinutes >= currentTunisiaMinutes) {
+      return {
+        targetDay: currentDayOfWeek,
+        targetHoliday: isHoliday,
+        remaining: busMinutes - currentTunisiaMinutes,
+        isNextDay: false
+      };
+    } else {
+      const nextDay = (currentDayOfWeek + 1) % 7;
+      return {
+        targetDay: nextDay,
+        targetHoliday: isTomorrowHoliday,
+        remaining: (1440 - currentTunisiaMinutes) + busMinutes,
+        isNextDay: true
+      };
+    }
+  };
+
   // Direction 1: Tebourba -> Gobaa (Bus) -> Line D Station (Train)
   if (fromStationId === 'tebourba_bus' && toStationId !== 'tebourba_bus') {
     const hubStation = findStationById('gobaa') || fromStation;
@@ -173,30 +226,68 @@ export function findMultimodalBusTrips(
       const busArrGobaaM = busDepM + BUS_ESTIMATED_TRANSIT_MINUTES;
       const trainMinDepM = busArrGobaaM + HUB_TRANSFER_BUFFER_MINUTES;
 
-      // Find trains from Gobaa to toStationId
-      const connectingTrains = findDirectTrips(
-        'gobaa',
-        toStationId,
-        'D',
-        trainMinDepM,
-        currentDayOfWeek,
-        lang,
-        isHoliday,
-        isTomorrowHoliday
-      );
+      const dayResolution = getBusTargetDay(busDepM);
 
-      if (connectingTrains.length > 0) {
-        const trainTrip = connectingTrains[0];
-        const trainDepM = parseTimeToMinutes(trainTrip.departureTime);
-        const transferWait = trainDepM - busArrGobaaM;
-        const totalDuration = BUS_ESTIMATED_TRANSIT_MINUTES + transferWait + trainTrip.durationMinutes;
+      // Find trains from Gobaa to toStationId on the specific target day
+      const candidateTrains = ALL_SCHEDULES.filter((s) => s.lineId === 'D' && s.direction === 'outbound')
+        .filter((s) => isTrainRunningOnDay(s.days, dayResolution.targetDay, dayResolution.targetHoliday))
+        .map((s) => {
+          const fromIndex = s.stops.findIndex((st) => st.stationId === 'gobaa');
+          const toIndex = s.stops.findIndex((st) => st.stationId === toStationId);
+          if (fromIndex === -1 || toIndex === -1 || fromIndex >= toIndex) return null;
+          const depTime = s.stops[fromIndex].time;
+          const arrTime = s.stops[toIndex].time;
+          const depM = parseTimeToMinutes(depTime);
+          const arrM = parseTimeToMinutes(arrTime);
+          if (depM < trainMinDepM) return null;
+          return {
+            schedule: s,
+            depTime,
+            arrTime,
+            depM,
+            arrM,
+            fromIndex,
+            toIndex
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+        .sort((a, b) => a.depM - b.depM);
 
-        let remaining = busDepM - currentTunisiaMinutes;
-        let isNextDay = false;
-        if (remaining < 0) {
-          remaining += 1440;
-          isNextDay = true;
-        }
+      if (candidateTrains.length > 0) {
+        const bestTrain = candidateTrains[0];
+        const transferWait = bestTrain.depM - busArrGobaaM;
+        const trainDuration = bestTrain.arrM - bestTrain.depM;
+        const totalDuration = BUS_ESTIMATED_TRANSIT_MINUTES + transferWait + trainDuration;
+
+        const badge = getDaysBadgeInfo(bestTrain.schedule.days, lang);
+
+        const slicedStops = bestTrain.schedule.stops.slice(bestTrain.fromIndex, bestTrain.toIndex + 1);
+        const intermediateStops = slicedStops.map((st) => ({
+          station: findStationById(st.stationId) || {
+            id: st.stationId,
+            nameAr: st.stationId,
+            nameFr: st.stationId,
+            nameEn: st.stationId,
+            lineId: 'D',
+            order: 0
+          },
+          time: st.time,
+          passed: false
+        }));
+
+        const trainTrip: DirectTrip = {
+          type: 'direct',
+          schedule: bestTrain.schedule,
+          departureTime: bestTrain.depTime,
+          arrivalTime: bestTrain.arrTime,
+          durationMinutes: trainDuration,
+          remainingMinutes: dayResolution.remaining + BUS_ESTIMATED_TRANSIT_MINUTES + transferWait,
+          originStation: hubStation,
+          destinationStation: toStation,
+          intermediateStops,
+          isNextDay: dayResolution.isNextDay,
+          dayBadgeText: badge.short
+        };
 
         trips.push({
           type: 'multimodal_bus',
@@ -208,13 +299,13 @@ export function findMultimodalBusTrips(
           transferWaitMinutes: Math.max(0, transferWait),
           trainTrip,
           departureTime: bus.departureTime,
-          arrivalTime: trainTrip.arrivalTime,
+          arrivalTime: bestTrain.arrTime,
           durationMinutes: totalDuration,
-          remainingMinutes: remaining,
+          remainingMinutes: dayResolution.remaining,
           originStation: fromStation,
           destinationStation: toStation,
-          isNextDay,
-          dayBadgeText: `حافلة ${bus.line} + قطار D`
+          isNextDay: dayResolution.isNextDay,
+          dayBadgeText: lang === 'ar' ? `حافلة ${bus.line} + قطار D` : `Bus ${bus.line} + Train D`
         });
       }
     }
@@ -227,39 +318,95 @@ export function findMultimodalBusTrips(
 
     for (const bus of returnBuses) {
       const busDepGobaaM = parseTimeToMinutes(bus.returnTime!);
-      const latestTrainArrivalAtGobaaM = busDepGobaaM - 4;
+      const latestTrainArrivalAtGobaaM = busDepGobaaM - HUB_TRANSFER_BUFFER_MINUTES;
 
-      // Find inbound trains from fromStationId to gobaa
-      const candidateTrains = findDirectTrips(
-        fromStationId,
-        'gobaa',
-        'D',
-        Math.max(0, latestTrainArrivalAtGobaaM - 90),
-        currentDayOfWeek,
-        lang,
-        isHoliday,
-        isTomorrowHoliday
-      ).filter((t) => {
-        const arrM = parseTimeToMinutes(t.arrivalTime);
-        return arrM <= latestTrainArrivalAtGobaaM && arrM >= latestTrainArrivalAtGobaaM - 45;
-      }).sort((a, b) => parseTimeToMinutes(b.arrivalTime) - parseTimeToMinutes(a.arrivalTime));
+      const dayResolution = getBusTargetDay(busDepGobaaM);
+
+      // Find inbound trains from fromStationId to gobaa arriving before latestTrainArrivalAtGobaaM
+      const candidateTrains = ALL_SCHEDULES.filter((s) => s.lineId === 'D' && s.direction === 'inbound')
+        .filter((s) => isTrainRunningOnDay(s.days, dayResolution.targetDay, dayResolution.targetHoliday))
+        .map((s) => {
+          const fromIndex = s.stops.findIndex((st) => st.stationId === fromStationId);
+          const toIndex = s.stops.findIndex((st) => st.stationId === 'gobaa');
+          if (fromIndex === -1 || toIndex === -1 || fromIndex >= toIndex) return null;
+          const depTime = s.stops[fromIndex].time;
+          const arrTime = s.stops[toIndex].time;
+          const depM = parseTimeToMinutes(depTime);
+          const arrM = parseTimeToMinutes(arrTime);
+          if (arrM > latestTrainArrivalAtGobaaM || arrM < latestTrainArrivalAtGobaaM - 45) return null;
+          return {
+            schedule: s,
+            depTime,
+            arrTime,
+            depM,
+            arrM,
+            fromIndex,
+            toIndex
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null)
+        .sort((a, b) => b.arrM - a.arrM);
 
       if (candidateTrains.length > 0) {
-        const trainTrip = candidateTrains[0];
-        const trainArrM = parseTimeToMinutes(trainTrip.arrivalTime);
-        const transferWait = busDepGobaaM - trainArrM;
-        const trainDuration = trainTrip.durationMinutes;
+        const bestTrain = candidateTrains[0];
+        const trainDuration = bestTrain.arrM - bestTrain.depM;
+        const transferWait = busDepGobaaM - bestTrain.arrM;
+        const busArrTebourbaM = busDepGobaaM + BUS_ESTIMATED_TRANSIT_MINUTES;
         const totalDuration = trainDuration + transferWait + BUS_ESTIMATED_TRANSIT_MINUTES;
 
-        const trainDepM = parseTimeToMinutes(trainTrip.departureTime);
-        let remaining = trainDepM - currentTunisiaMinutes;
+        // Journey begins with train departure from fromStationId!
+        let trainRemaining: number;
         let isNextDay = false;
-        if (remaining < 0) {
-          remaining += 1440;
+        if (currentDayOfWeek === 0) {
+          trainRemaining = (1440 - currentTunisiaMinutes) + bestTrain.depM;
           isNextDay = true;
+        } else if (currentDayOfWeek === 6) {
+          if (bestTrain.depM >= currentTunisiaMinutes) {
+            trainRemaining = bestTrain.depM - currentTunisiaMinutes;
+            isNextDay = false;
+          } else {
+            trainRemaining = (1440 - currentTunisiaMinutes) + 1440 + bestTrain.depM;
+            isNextDay = true;
+          }
+        } else {
+          if (bestTrain.depM >= currentTunisiaMinutes) {
+            trainRemaining = bestTrain.depM - currentTunisiaMinutes;
+            isNextDay = false;
+          } else {
+            trainRemaining = (1440 - currentTunisiaMinutes) + bestTrain.depM;
+            isNextDay = true;
+          }
         }
 
-        const busArrTebourbaM = busDepGobaaM + BUS_ESTIMATED_TRANSIT_MINUTES;
+        const badge = getDaysBadgeInfo(bestTrain.schedule.days, lang);
+
+        const slicedStops = bestTrain.schedule.stops.slice(bestTrain.fromIndex, bestTrain.toIndex + 1);
+        const intermediateStops = slicedStops.map((st) => ({
+          station: findStationById(st.stationId) || {
+            id: st.stationId,
+            nameAr: st.stationId,
+            nameFr: st.stationId,
+            nameEn: st.stationId,
+            lineId: 'D',
+            order: 0
+          },
+          time: st.time,
+          passed: false
+        }));
+
+        const trainTrip: DirectTrip = {
+          type: 'direct',
+          schedule: bestTrain.schedule,
+          departureTime: bestTrain.depTime,
+          arrivalTime: bestTrain.arrTime,
+          durationMinutes: trainDuration,
+          remainingMinutes: trainRemaining,
+          originStation: fromStation,
+          destinationStation: hubStation,
+          intermediateStops,
+          isNextDay,
+          dayBadgeText: badge.short
+        };
 
         trips.push({
           type: 'multimodal_bus',
@@ -270,14 +417,14 @@ export function findMultimodalBusTrips(
           transferStation: hubStation,
           transferWaitMinutes: Math.max(0, transferWait),
           trainTrip,
-          departureTime: trainTrip.departureTime,
+          departureTime: bestTrain.depTime,
           arrivalTime: formatMinutesToTime(busArrTebourbaM),
           durationMinutes: totalDuration,
-          remainingMinutes: remaining,
+          remainingMinutes: trainRemaining,
           originStation: fromStation,
           destinationStation: toStation,
           isNextDay,
-          dayBadgeText: `قطار D + حافلة ${bus.line}`
+          dayBadgeText: lang === 'ar' ? `قطار D + حافلة ${bus.line}` : `Train D + Bus ${bus.line}`
         });
       }
     }
@@ -338,8 +485,14 @@ export function searchTrips(
 export function formatRemainingTime(mins: number, lang: Language): string {
   const t = TRANSLATIONS[lang];
   if (mins <= 0) return t.departsNow;
-  if (mins < 60) return `${mins} ${t.minutes}`;
+  if (lang === 'ar') {
+    if (mins < 60) return `${mins} دقيقة`;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h} س و ${m} دق` : `${h} س`;
+  }
+  if (mins < 60) return `${mins} min`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m > 0 ? `${h} ${t.hours} ${m} ${t.minutes}` : `${h} ${t.hours}`;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }

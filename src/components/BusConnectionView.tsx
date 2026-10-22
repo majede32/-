@@ -8,19 +8,16 @@ import {
 import {
   Bus,
   Train,
-  ArrowRight,
-  ArrowLeft,
   Clock,
-  ExternalLink,
   Filter,
-  CheckCircle2,
-  Calendar,
   Volume2,
   Share2,
   FileText,
   X,
   Compass,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  Info
 } from 'lucide-react';
 import { playRailwayChime } from '../utils/sound';
 
@@ -28,12 +25,16 @@ interface BusConnectionViewProps {
   lang: Language;
   currentTunisiaMinutes: number;
   currentDayOfWeek: number;
+  isHoliday?: boolean;
+  isTomorrowHoliday?: boolean;
 }
 
 export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   lang,
   currentTunisiaMinutes,
-  currentDayOfWeek
+  currentDayOfWeek,
+  isHoliday = false,
+  isTomorrowHoliday = false
 }) => {
   const t = TRANSLATIONS[lang];
   const [direction, setDirection] = useState<'tebourba_to_gobaa' | 'gobaa_to_tebourba'>('tebourba_to_gobaa');
@@ -43,15 +44,30 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
 
   const activeLineFilter = selectedLine === 'all' ? undefined : selectedLine;
 
+  const isSunday = currentDayOfWeek === 0;
+
+  // Use the authoritative synchronization engine with full day-of-week and holiday context
   const connections: SynchronizedBusTrainConnection[] = useMemo(() => {
     if (direction === 'tebourba_to_gobaa') {
-      return getSynchronizedDeparturesFromTebourba(currentTunisiaMinutes, activeLineFilter);
+      return getSynchronizedDeparturesFromTebourba(
+        currentTunisiaMinutes,
+        currentDayOfWeek,
+        isHoliday,
+        isTomorrowHoliday,
+        activeLineFilter
+      );
     } else {
-      return getSynchronizedReturnsFromGobaa(currentTunisiaMinutes, activeLineFilter);
+      return getSynchronizedReturnsFromGobaa(
+        currentTunisiaMinutes,
+        currentDayOfWeek,
+        isHoliday,
+        isTomorrowHoliday,
+        activeLineFilter
+      );
     }
-  }, [direction, activeLineFilter, currentTunisiaMinutes]);
+  }, [direction, activeLineFilter, currentTunisiaMinutes, currentDayOfWeek, isHoliday, isTomorrowHoliday]);
 
-  // Next upcoming bus from current time
+  // Next upcoming trip from current time
   const upcomingConnections = useMemo(() => {
     return connections.filter((c) => !c.isPassed);
   }, [connections]);
@@ -63,11 +79,35 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         window.speechSynthesis.cancel();
-        const dirText = conn.direction === 'to_gobaa'
-          ? `Feeder bus line ${conn.busLine} to Gobaa station will depart from Tebourba at ${conn.busDeparture}. Transfer to RFR train at Gobaa.`
-          : `Return bus line ${conn.busLine} to Tebourba will depart from Gobaa station at ${conn.busDeparture}.`;
-        const utterance = new SpeechSynthesisUtterance(dirText);
-        utterance.lang = 'en-US';
+        let announcementText = '';
+        if (lang === 'ar') {
+          if (conn.direction === 'to_gobaa') {
+            announcementText = `حافلة الخط ${conn.busLine} تنطلق من طبربة الساعة ${conn.busDeparture} مع تبديل لقطار RFR بمحطة القباعة.`;
+          } else {
+            announcementText = conn.hasConnectingTrain
+              ? `رحلة العودة لطبربة: قطار الخط D ينطلق من تونس الساعة ${conn.trainDeparture} ثم حافلة ${conn.busLine} من القباعة الساعة ${conn.busDeparture}.`
+              : `حافلة العودة الخط ${conn.busLine} تنطلق من القباعة الساعة ${conn.busDeparture}.`;
+          }
+        } else if (lang === 'fr') {
+          if (conn.direction === 'to_gobaa') {
+            announcementText = `Bus ligne ${conn.busLine} au départ de Tébourba à ${conn.busDeparture}. Correspondance train RFR à Gobâa.`;
+          } else {
+            announcementText = conn.hasConnectingTrain
+              ? `Retour à Tébourba : départ du train de Tunis à ${conn.trainDeparture}, puis bus ${conn.busLine} à Gobâa à ${conn.busDeparture}.`
+              : `Bus retour ligne ${conn.busLine} au départ de Gobâa à ${conn.busDeparture}.`;
+          }
+        } else {
+          if (conn.direction === 'to_gobaa') {
+            announcementText = `Feeder bus line ${conn.busLine} leaves Tebourba at ${conn.busDeparture}. Transfer to RFR train at Gobaa.`;
+          } else {
+            announcementText = conn.hasConnectingTrain
+              ? `Return to Tebourba: train departs Tunis at ${conn.trainDeparture}, connecting to bus ${conn.busLine} at Gobaa at ${conn.busDeparture}.`
+              : `Return bus line ${conn.busLine} leaves Gobaa at ${conn.busDeparture}.`;
+          }
+        }
+
+        const utterance = new SpeechSynthesisUtterance(announcementText);
+        utterance.lang = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr-FR' : 'en-US';
         utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
       } catch {}
@@ -75,34 +115,66 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   };
 
   const handleShareBusTrip = (conn: SynchronizedBusTrainConnection) => {
-    const text = `🚌 حافلة الترابط (الخط ${conn.busLine})\n📍 ${conn.direction === 'to_gobaa' ? 'طبربة ➔ محطة قطار القباعة ➔ تونس' : 'محطة قطار القباعة ➔ طبربة (عودة)'}\n⏰ انطلاق الحافلة: ${conn.busDeparture}\n🚆 القطار المترابط: ${conn.trainSchedule ? `قطار ${conn.trainSchedule.trainNumber} (${conn.trainDeparture})` : 'متوفر'}\n⏱️ المدة الإجمالية: ${conn.totalDurationMins} دقيقة`;
+    const text = direction === 'tebourba_to_gobaa'
+      ? `🚌 ${t.busTab} (${t.line} ${conn.busLine})\n📍 ${t.busDepartureFromTebourba}: ${conn.busDeparture}\n🚆 ${t.connectingTrainHeading}: ${conn.hasConnectingTrain ? `${t.trainNumberLabel} ${conn.trainSchedule?.trainNumber} (${conn.trainDeparture})` : t.noConnectingTrainForEarlyBus}\n⏱️ ${t.totalDurationLabel} ${conn.totalDurationMins} ${t.minutes}`
+      : `🚌 ${t.busTab} (${t.line} ${conn.busLine} - عودة)\n🚆 ${t.trainDepartureFromTunis}: ${conn.trainDeparture || '—'}\n📍 ${t.busDepartureFromGobaa}: ${conn.busDeparture}\n⏱️ ${t.totalDurationLabel} ${conn.totalDurationMins} ${t.minutes}`;
+
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      setCopiedTripId(conn.busDeparture);
+      setCopiedTripId(conn.id);
       setTimeout(() => setCopiedTripId(null), 2500);
     }
   };
 
+  // Safe formatting helper to prevent RTL text reversals (e.g. "h 10 min 7" -> "7h 10m" or "7 س و10 دق")
+  const renderRemainingTime = (mins: number) => {
+    if (mins <= 0) {
+      return <span>{t.departsNow}</span>;
+    }
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0) {
+      return (
+        <span className="inline-flex items-baseline gap-1" dir="ltr">
+          <span className="font-mono">{h}</span>
+          <span className="text-xs font-sans">{t.hours}</span>
+          {m > 0 && (
+            <>
+              <span className="font-mono ms-1">{m}</span>
+              <span className="text-xs font-sans">{t.minutes}</span>
+            </>
+          )}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-baseline gap-1" dir="ltr">
+        <span className="font-mono">{m}</span>
+        <span className="text-xs font-sans">{t.minutes}</span>
+      </span>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden">
       {/* Header Banner */}
       <div className="bg-linear-to-r from-emerald-800 to-teal-900 text-white rounded-3xl p-5 sm:p-7 shadow-lg relative overflow-hidden">
         <div className="absolute top-0 end-0 -mt-8 -me-8 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-xs font-bold flex items-center gap-1.5">
-                <Bus className="w-3.5 h-3.5" />
+                <Bus className="w-3.5 h-3.5 shrink-0" />
                 <span>ولاية منوبة · معتمدية طبربة</span>
               </span>
               <span className="px-2.5 py-1 rounded-full bg-white/10 text-slate-200 text-xs font-semibold">
-                الخط 42 و 116
+                {t.allTripsCount}
               </span>
             </div>
 
             <button
               onClick={() => setIsPosterModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 border border-white/20"
+              className="px-3.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 border border-white/20 shrink-0"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-300" />
               <span>{t.viewBusOfficialDocument}</span>
@@ -113,15 +185,44 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
             {t.busConnectionHeader}
           </h2>
           <p className="text-xs sm:text-sm text-emerald-100 max-w-2xl leading-relaxed">
-            {t.busSubtitle} — خدمة نقل مدمجة تربط أهالي طبربة بوسط العاصمة تونس ومحطات منوبة وباردو عبر محطة قطار القباعة (الخط D).
+            {t.busSubtitle}
           </p>
+
+          {/* Official Document Validity Badge */}
+          <div className="pt-1 flex flex-wrap items-center gap-2 text-[11px] text-emerald-200/90">
+            <Calendar className="w-3.5 h-3.5 shrink-0 text-emerald-300" />
+            <span>{t.busPosterValidityNotice}</span>
+          </div>
         </div>
+      </div>
+
+      {/* Sunday Service Alert Banner */}
+      {isSunday && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-xs">
+            <p className="font-bold text-amber-900">
+              {t.busNoSundayService}
+            </p>
+            <p className="text-amber-700 leading-relaxed">
+              {t.nextMondayBus}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Engineering Estimates Disclosure Box */}
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-slate-600">
+        <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+        <p className="leading-relaxed text-slate-600">
+          {t.busEstimatedDisclaimer}
+        </p>
       </div>
 
       {/* Direction & Line Selectors */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-slate-200 space-y-4">
         {/* Direction Switcher */}
-        <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
           <button
             onClick={() => setDirection('tebourba_to_gobaa')}
             className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
@@ -130,8 +231,8 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Compass className="w-4 h-4 text-emerald-600" />
-            <span>{t.busDepartures}</span>
+            <Compass className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">{t.busDepartures}</span>
           </button>
 
           <button
@@ -142,19 +243,19 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Bus className="w-4 h-4 text-teal-600" />
-            <span>{t.busReturns}</span>
+            <Bus className="w-4 h-4 text-teal-600 shrink-0" />
+            <span className="truncate">{t.busReturns}</span>
           </button>
         </div>
 
         {/* Line Filter */}
-        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-semibold">
             <Filter className="w-3.5 h-3.5" />
-            <span>تصفية الخط:</span>
+            <span>{t.filterLine}</span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setSelectedLine('all')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
@@ -163,7 +264,7 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              الكل (24 سفرة)
+              {t.allTripsCount}
             </button>
             <button
               onClick={() => setSelectedLine('42')}
@@ -173,7 +274,7 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              الخط 42
+              {t.line42Only}
             </button>
             <button
               onClick={() => setSelectedLine('116')}
@@ -183,26 +284,28 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              الخط 116
+              {t.line116Only}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Hero Next Bus Card */}
+      {/* Hero Next Trip Card */}
       {nextBus && (
         <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-md border-2 border-emerald-500/30 relative overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs">
+              <span className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs shrink-0">
                 {nextBus.busLine}
               </span>
               <div>
                 <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
-                  {direction === 'tebourba_to_gobaa' ? 'السفرة القادمة من طبربة' : 'سفرة العودة القادمة من القباعة'}
+                  {direction === 'tebourba_to_gobaa'
+                    ? t.nextBusDepartingFromTebourba
+                    : t.nextBusDepartingFromGobaa}
                 </span>
                 <span className="text-xs text-slate-500 font-medium">
-                  حافلة الخط {nextBus.busLine} (من الإثنين إلى السبت)
+                  {t.busLine} {nextBus.busLine} ({t.operatingDaysNotice})
                 </span>
               </div>
             </div>
@@ -210,81 +313,97 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => announceBusVoice(nextBus)}
-                title="إعلان صوتي"
-                aria-label="إعلان صوتي للسفرة"
+                title={t.voiceAnnouncementTitle}
+                aria-label={t.voiceAnnouncementTitle}
                 className="w-8 h-8 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 flex items-center justify-center transition-colors active:scale-95"
               >
                 <Volume2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleShareBusTrip(nextBus)}
-                title="مشاركة الموعد"
-                aria-label="مشاركة الموعد"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors active:scale-95"
+                title={t.shareBusTripTitle}
+                aria-label={t.shareBusTripTitle}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors active:scale-95 relative"
               >
                 <Share2 className="w-4 h-4" />
+                {copiedTripId === nextBus.id && (
+                  <span className="absolute -top-7 start-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] px-2 py-0.5 rounded shadow whitespace-nowrap z-20">
+                    {t.tripCopied}
+                  </span>
+                )}
               </button>
             </div>
           </div>
 
+          {/* Time & Countdown Section */}
           <div className="py-4 flex flex-wrap items-baseline justify-between gap-3">
             <div>
               <span className="text-xs text-slate-500 block mb-1">
-                {direction === 'tebourba_to_gobaa' ? 'انطلاق الحافلة من طبربة' : 'انطلاق حافلة العودة من القباعة'}
+                {direction === 'tebourba_to_gobaa'
+                  ? t.busDepartureFromTebourba
+                  : (nextBus.hasConnectingTrain ? t.trainDepartureFromTunis : t.busDepartureFromGobaa)}
               </span>
               <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight" dir="ltr">
-                {nextBus.busDeparture}
+                <bdi>{nextBus.firstLegDepartureTime}</bdi>
               </span>
+              {direction === 'gobaa_to_tebourba' && nextBus.hasConnectingTrain && (
+                <span className="text-[11px] text-slate-500 block mt-1">
+                  {t.busDepartureFromGobaa}: <strong className="font-mono" dir="ltr">{nextBus.busDeparture}</strong>
+                </span>
+              )}
             </div>
 
             <div className="text-end">
-              <span className="text-xs text-slate-500 block mb-1">الوقت المتبقي</span>
-              <span className="text-xl sm:text-2xl font-black text-emerald-700 font-mono">
-                {nextBus.remainingMinutesFromNow <= 0
-                  ? 'تنطلق الآن!'
-                  : `${Math.floor(nextBus.remainingMinutesFromNow / 60) > 0 ? `${Math.floor(nextBus.remainingMinutesFromNow / 60)} س ` : ''}${nextBus.remainingMinutesFromNow % 60} دق`}
+              <span className="text-xs text-slate-500 block mb-1">{t.departsIn}</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-700">
+                {renderRemainingTime(nextBus.remainingMinutesFromNow)}
               </span>
+              {nextBus.isTomorrow && (
+                <span className="text-[11px] text-amber-700 font-semibold block mt-0.5">
+                  ({isSunday ? t.nextMondayBus : t.tomorrow})
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Synchronized Train Connection */}
+          {/* Synchronized Train Connection Card */}
           <div className="mt-3 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between text-xs">
+            <div className="flex flex-wrap items-center justify-between text-xs gap-2">
               <span className="font-bold text-slate-700 flex items-center gap-1.5">
-                <Train className="w-4 h-4 text-orange-600" />
+                <Train className="w-4 h-4 text-orange-600 shrink-0" />
                 <span>{t.connectingTrainHeading}</span>
               </span>
               <span className="text-slate-500">
-                المدة الإجمالية للرحلة: <strong>{nextBus.totalDurationMins} دق</strong>
+                {t.totalDurationLabel} <strong className="text-slate-800 font-mono" dir="ltr">{nextBus.totalDurationMins} {t.minutes}</strong>
               </span>
             </div>
 
-            {nextBus.trainSchedule ? (
-              <div className="flex items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-800 pt-1 border-t border-slate-200">
+            {nextBus.hasConnectingTrain && nextBus.trainSchedule ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-800 pt-2 border-t border-slate-200 gap-2">
                 <div>
                   <span className="text-slate-400 font-sans text-[11px] block">
-                    {direction === 'tebourba_to_gobaa' ? 'انطلاق القطار من القباعة' : 'انطلاق القطار من تونس'}
+                    {direction === 'tebourba_to_gobaa' ? t.trainDepartureFromGobaa : t.trainDepartureFromTunis}
                   </span>
-                  <span>{nextBus.trainDeparture}</span>
+                  <span dir="ltr"><bdi>{nextBus.trainDeparture}</bdi></span>
                   <span className="text-slate-500 font-sans text-xs ms-1">
-                    (قطار {nextBus.trainSchedule.trainNumber})
+                    ({t.trainNumberLabel} {nextBus.trainSchedule.trainNumber})
                   </span>
                 </div>
 
-                <div className="text-center text-slate-400 font-sans text-xs">
+                <div className="text-center text-slate-400 font-sans text-xs py-1 sm:py-0">
                   {lang === 'ar' ? '⬅ تبديل بالرصيف 6 دق ⬅' : '➔ Transfer 6m ➔'}
                 </div>
 
-                <div className="text-end">
+                <div className="sm:text-end">
                   <span className="text-slate-400 font-sans text-[11px] block">
-                    {direction === 'tebourba_to_gobaa' ? 'الوصول لتونس برشلونة' : 'الوصول للقباعة'}
+                    {direction === 'tebourba_to_gobaa' ? t.trainArrivalAtTunis : t.trainArrivalAtGobaa}
                   </span>
-                  <span>{nextBus.trainArrival}</span>
+                  <span dir="ltr"><bdi>{nextBus.trainArrival}</bdi></span>
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-slate-500">
-                يصل الركاب لمحطة القباعة الساعة <strong>{nextBus.busArrival}</strong> ويكون الربط متاحاً مع رحلات القطار المتتالية.
+              <div className="text-xs text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/80 leading-relaxed">
+                {t.noConnectingTrainForEarlyBus}
               </div>
             )}
           </div>
@@ -295,23 +414,23 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
       <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-200 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-emerald-600" />
+            <Clock className="w-5 h-5 text-emerald-600 shrink-0" />
             <span>
               {direction === 'tebourba_to_gobaa'
-                ? 'جدول كافة سفرات الذهاب (طبربة ➔ القباعة)'
-                : 'جدول كافة سفرات العودة (القباعة ➔ طبربة)'}
+                ? t.scheduleDeparturesHeading
+                : t.scheduleReturnsHeading}
             </span>
           </h3>
 
           <span className="text-xs text-slate-500 font-semibold">
-            {connections.length} سفرة
+            {connections.length} {t.tripsCount}
           </span>
         </div>
 
         <div className="space-y-2.5">
-          {connections.map((c, idx) => (
+          {connections.map((c) => (
             <div
-              key={`${c.busLine}-${c.busDeparture}-${idx}`}
+              key={c.id}
               className={`p-3.5 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                 c.isPassed
                   ? 'bg-slate-50/60 border-slate-200 text-slate-400 opacity-70'
@@ -319,68 +438,61 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className={`px-2.5 py-1 rounded-xl text-xs font-black ${
+                <span className={`px-2.5 py-1 rounded-xl text-xs font-black shrink-0 ${
                   c.busLine === '42'
                     ? 'bg-emerald-100 text-emerald-800'
                     : 'bg-teal-100 text-teal-800'
                 }`}>
-                  الخط {c.busLine}
+                  {t.busLine} {c.busLine}
                 </span>
 
                 <div>
                   <div className="flex items-center gap-2 text-sm sm:text-base font-black font-mono">
-                    <span dir="ltr">{c.busDeparture}</span>
+                    <span dir="ltr"><bdi>{c.busDeparture}</bdi></span>
                     <span className="text-slate-400 font-sans text-xs">
                       {lang === 'ar' ? '⬅ وصول' : '➔'}
                     </span>
-                    <span dir="ltr">{c.busArrival}</span>
+                    <span dir="ltr"><bdi>{c.busArrival}</bdi></span>
                   </div>
 
                   <span className="text-[11px] text-slate-500 block mt-0.5">
                     {c.direction === 'to_gobaa'
-                      ? 'انطلاق من طبربة ➔ وصول محطة القباعة'
-                      : 'انطلاق من محطة القباعة ➔ وصول طبربة'}
+                      ? `${t.busDepartureFromTebourba} ➔ ${t.busArrivalAtGobaa}`
+                      : `${t.busDepartureFromGobaa} ➔ ${t.busArrivalAtTebourba}`}
                   </span>
                 </div>
               </div>
 
               {/* Connecting Train Info */}
               <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                {c.trainSchedule ? (
+                {c.hasConnectingTrain && c.trainSchedule ? (
                   <div className="text-end">
                     <span className="text-[11px] text-slate-500 block">
-                      قطار {c.trainSchedule.trainNumber} (الخط D)
+                      {t.trainNumberLabel} {c.trainSchedule.trainNumber} ({t.lineDLabel})
                     </span>
                     <span className="text-xs sm:text-sm font-bold font-mono text-orange-600" dir="ltr">
-                      {c.trainDeparture} ➔ {c.trainArrival}
+                      <bdi>{c.trainDeparture} ➔ {c.trainArrival}</bdi>
                     </span>
                   </div>
                 ) : (
-                  <span className="text-xs text-slate-400">قطار متوفر</span>
+                  <div className="text-end">
+                    <span className="text-[11px] text-slate-400 block italic">
+                      {c.direction === 'return_to_tebourba' ? 'دون قطار متصل من تونس' : 'حافلة مباشرة'}
+                    </span>
+                  </div>
                 )}
 
                 <div className="text-end shrink-0">
-                  <span className="text-xs font-bold text-slate-700 font-mono block">
-                    {c.totalDurationMins} دق
+                  <span className="text-xs font-bold text-slate-700 font-mono block" dir="ltr">
+                    {c.totalDurationMins} {t.minutes}
                   </span>
                   <span className="text-[10px] text-slate-400 block">
-                    {c.isPassed ? 'مضت' : `بعد ${c.remainingMinutesFromNow} دق`}
+                    {c.isPassed ? 'مضت' : renderRemainingTime(c.remainingMinutesFromNow)}
                   </span>
                 </div>
               </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Notice Card */}
-      <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-bold text-slate-800">{t.busNotice}</p>
-          <p className="text-slate-500 leading-relaxed">
-            تعمل هذه السفرات من يوم الإثنين إلى يوم السبت بنظام التنسيق المباشر مع محطة قطار RFR بالقباعة لتمكين المواطنين والطلبة من الوصول السريع والمريح.
-          </p>
         </div>
       </div>
 
@@ -390,9 +502,9 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
           <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col my-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-emerald-400" />
+                <FileText className="w-5 h-5 text-emerald-400 shrink-0" />
                 <h4 className="text-sm sm:text-base font-bold text-white">
-                  الجدول الرسمي الصادر عن معتمدية طبربة (خطوط 42 و 116)
+                  {t.officialPosterModalTitle}
                 </h4>
               </div>
               <button

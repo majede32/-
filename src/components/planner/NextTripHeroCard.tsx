@@ -79,16 +79,18 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
         </span>
         <div className="mt-1 flex items-baseline gap-2 flex-wrap">
           <span className="text-xs sm:text-sm font-semibold text-slate-600">{t.departsIn}</span>
-          <span className="text-2xl sm:text-5xl font-black text-amber-700 tracking-tight font-mono tabular-nums">
-            {trip.remainingMinutes <= 0
-              ? t.departsNow
-              : lang === 'ar'
-              ? trip.remainingMinutes < 60
-                ? `${trip.remainingMinutes} دقيقة`
-                : `${Math.floor(trip.remainingMinutes / 60)} س و ${trip.remainingMinutes % 60} دق`
-              : trip.remainingMinutes < 60
-              ? `${trip.remainingMinutes} min`
-              : `${Math.floor(trip.remainingMinutes / 60)} h ${trip.remainingMinutes % 60} min`}
+          <span className="text-2xl sm:text-5xl font-black text-amber-700 tracking-tight font-mono tabular-nums inline-block" dir="ltr">
+            <bdi>
+              {trip.remainingMinutes <= 0
+                ? t.departsNow
+                : lang === 'ar'
+                ? trip.remainingMinutes < 60
+                  ? `${trip.remainingMinutes} دقيقة`
+                  : `${Math.floor(trip.remainingMinutes / 60)} س و ${trip.remainingMinutes % 60} دق`
+                : trip.remainingMinutes < 60
+                ? `${trip.remainingMinutes} min`
+                : `${Math.floor(trip.remainingMinutes / 60)} h ${trip.remainingMinutes % 60} min`}
+            </bdi>
           </span>
         </div>
       </div>
