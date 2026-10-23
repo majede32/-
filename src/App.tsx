@@ -97,6 +97,15 @@ export default function App() {
     return check.isHoliday;
   }, [tunisiaTimeInfo.year, tunisiaTimeInfo.month, tunisiaTimeInfo.day]);
 
+  const isMondayHoliday = useMemo(() => {
+    const day = tunisiaTimeInfo.dayOfWeek;
+    const daysToMonday = day === 6 ? 2 : day === 0 ? 1 : 0;
+    if (daysToMonday === 0) return false;
+    const mon = new Date(tunisiaTimeInfo.year, tunisiaTimeInfo.month - 1, tunisiaTimeInfo.day + daysToMonday);
+    const check = checkTunisianHoliday(mon.getFullYear(), mon.getMonth() + 1, mon.getDate());
+    return check.isHoliday;
+  }, [tunisiaTimeInfo.year, tunisiaTimeInfo.month, tunisiaTimeInfo.day, tunisiaTimeInfo.dayOfWeek]);
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 text-slate-900 pb-24 md:pb-12">
@@ -164,6 +173,7 @@ export default function App() {
                 currentDayOfWeek={tunisiaTimeInfo.dayOfWeek}
                 isHoliday={tunisiaTimeInfo.isHoliday}
                 isTomorrowHoliday={isTomorrowHoliday}
+                isMondayHoliday={isMondayHoliday}
               />
             </Suspense>
           )}

@@ -27,6 +27,7 @@ interface BusConnectionViewProps {
   currentDayOfWeek: number;
   isHoliday?: boolean;
   isTomorrowHoliday?: boolean;
+  isMondayHoliday?: boolean;
 }
 
 export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
@@ -34,7 +35,8 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   currentTunisiaMinutes,
   currentDayOfWeek,
   isHoliday = false,
-  isTomorrowHoliday = false
+  isTomorrowHoliday = false,
+  isMondayHoliday = false
 }) => {
   const t = TRANSLATIONS[lang];
   const [direction, setDirection] = useState<'tebourba_to_gobaa' | 'gobaa_to_tebourba'>('tebourba_to_gobaa');
@@ -54,6 +56,7 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
         currentDayOfWeek,
         isHoliday,
         isTomorrowHoliday,
+        isMondayHoliday,
         activeLineFilter
       );
     } else {
@@ -62,10 +65,11 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
         currentDayOfWeek,
         isHoliday,
         isTomorrowHoliday,
+        isMondayHoliday,
         activeLineFilter
       );
     }
-  }, [direction, activeLineFilter, currentTunisiaMinutes, currentDayOfWeek, isHoliday, isTomorrowHoliday]);
+  }, [direction, activeLineFilter, currentTunisiaMinutes, currentDayOfWeek, isHoliday, isTomorrowHoliday, isMondayHoliday]);
 
   // Next upcoming trip from current time
   const upcomingConnections = useMemo(() => {
@@ -358,9 +362,9 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
               <span className="text-xl sm:text-2xl font-black text-emerald-700">
                 {renderRemainingTime(nextBus.remainingMinutesFromNow)}
               </span>
-              {nextBus.isTomorrow && (
+              {nextBus.isNextDay && (
                 <span className="text-[11px] text-amber-700 font-semibold block mt-0.5">
-                  ({isSunday ? t.nextMondayBus : t.tomorrow})
+                  ({nextBus.isTomorrow && !isSunday ? t.tomorrow : t.nextMondayBus})
                 </span>
               )}
             </div>

@@ -33,51 +33,70 @@ export interface SynchronizedBusTrainConnection {
 
   // Journey metrics
   totalDurationMins: number;
-  firstLegDepartureTime: string; // The time the passenger must start journey (bus in outbound; train from Tunis in return)
+  firstLegDepartureTime: string; // The time passenger begins trip (bus in outbound; train from Tunis in return)
   remainingMinutesFromNow: number;
   isPassed: boolean;
   isTomorrow: boolean;
+  isNextDay: boolean;
   targetDayOfWeek: number;
   isSundayNoService?: boolean;
 }
 
-/**
- * Resolves target departure day and time offset given current time and day of week.
- * - Monday to Friday: today if trip is in the future; tomorrow morning if past.
- * - Saturday: today if in future; skips Sunday (no bus) and moves to Monday morning (+2 days) if past.
- * - Sunday: bus does NOT operate on Sunday; next trip is Monday morning (+1 day).
- */
-function resolveTargetDayForBus(
-  busMinutes: number,
-  currentTunisiaMinutes: number,
-  currentDayOfWeek: number
-): {
+export interface BusDayResolution {
   isPassed: boolean;
   isTomorrow: boolean;
+  isNextDay: boolean;
   remainingMinutes: number;
   targetDayOfWeek: number;
+  targetDayIsHoliday: boolean;
   isSundayNoService: boolean;
-} {
-  // Sunday
+}
+
+/**
+ * Authoritative, single source of truth for resolving the target operating day of feeder buses.
+ * Feeder buses operate Monday to Saturday (days 1 through 6). No service on Sunday (day 0).
+ *
+ * Rules:
+ * - Sunday: No service today. Next service targets Monday morning (+1 day). Tomorrow is Monday.
+ * - Saturday:
+ *     - If bus departure is in future: operates today (Saturday).
+ *     - If bus departure is past: jumps Sunday (no service) to Monday morning (+2 days / 48h).
+ * - Monday to Friday:
+ *     - If in future: operates today.
+ *     - If past: targets tomorrow morning.
+ */
+export function resolveBusTargetDay(
+  busMinutes: number,
+  currentTunisiaMinutes: number,
+  currentDayOfWeek: number,
+  isHoliday: boolean = false,
+  isTomorrowHoliday: boolean = false,
+  isMondayHoliday: boolean = false
+): BusDayResolution {
+  // Sunday (dayOfWeek = 0)
   if (currentDayOfWeek === 0) {
     const remainingMinutes = (1440 - currentTunisiaMinutes) + busMinutes;
     return {
       isPassed: false,
       isTomorrow: true,
+      isNextDay: true,
       remainingMinutes,
       targetDayOfWeek: 1, // Monday
+      targetDayIsHoliday: isTomorrowHoliday, // tomorrow of Sunday is Monday
       isSundayNoService: true
     };
   }
 
-  // Saturday
+  // Saturday (dayOfWeek = 6)
   if (currentDayOfWeek === 6) {
     if (busMinutes >= currentTunisiaMinutes) {
       return {
         isPassed: false,
         isTomorrow: false,
+        isNextDay: false,
         remainingMinutes: busMinutes - currentTunisiaMinutes,
         targetDayOfWeek: 6,
+        targetDayIsHoliday: isHoliday,
         isSundayNoService: false
       };
     } else {
@@ -85,21 +104,25 @@ function resolveTargetDayForBus(
       const remainingMinutes = (1440 - currentTunisiaMinutes) + 1440 + busMinutes;
       return {
         isPassed: true,
-        isTomorrow: false,
+        isTomorrow: false, // It's Monday, not tomorrow
+        isNextDay: true,
         remainingMinutes,
         targetDayOfWeek: 1, // Monday
+        targetDayIsHoliday: isMondayHoliday,
         isSundayNoService: false
       };
     }
   }
 
-  // Monday through Friday
+  // Monday through Friday (days 1..5)
   if (busMinutes >= currentTunisiaMinutes) {
     return {
       isPassed: false,
       isTomorrow: false,
+      isNextDay: false,
       remainingMinutes: busMinutes - currentTunisiaMinutes,
       targetDayOfWeek: currentDayOfWeek,
+      targetDayIsHoliday: isHoliday,
       isSundayNoService: false
     };
   } else {
@@ -109,8 +132,10 @@ function resolveTargetDayForBus(
     return {
       isPassed: true,
       isTomorrow: true,
+      isNextDay: true,
       remainingMinutes,
       targetDayOfWeek: nextDay,
+      targetDayIsHoliday: isTomorrowHoliday,
       isSundayNoService: false
     };
   }
@@ -124,6 +149,7 @@ export function getSynchronizedDeparturesFromTebourba(
   currentDayOfWeek: number = 1,
   isHoliday: boolean = false,
   isTomorrowHoliday: boolean = false,
+  isMondayHoliday: boolean = false,
   selectedLine?: '42' | '116'
 ): SynchronizedBusTrainConnection[] {
   const filtered = selectedLine
@@ -137,13 +163,19 @@ export function getSynchronizedDeparturesFromTebourba(
     const busArrGobaaM = busDepM + BUS_ESTIMATED_TRANSIT_MINUTES;
     const earliestTrainDepM = busArrGobaaM + HUB_TRANSFER_BUFFER_MINUTES;
 
-    const dayInfo = resolveTargetDayForBus(busDepM, currentTunisiaMinutes, currentDayOfWeek);
-    const targetDayIsHoliday = dayInfo.isTomorrow ? isTomorrowHoliday : isHoliday;
+    const dayInfo = resolveBusTargetDay(
+      busDepM,
+      currentTunisiaMinutes,
+      currentDayOfWeek,
+      isHoliday,
+      isTomorrowHoliday,
+      isMondayHoliday
+    );
 
     // Outbound trains: Gobaa -> Tunis Central
-    // Filter strictly by day-of-week & holiday rules (e.g. Type A trains do not run on Sundays or holidays)
+    // Filter strictly by circulation rules for the resolved target day
     const candidateTrains = ALL_SCHEDULES.filter((s) => s.direction === 'outbound')
-      .filter((s) => isTrainRunningOnDay(s.days, dayInfo.targetDayOfWeek, targetDayIsHoliday))
+      .filter((s) => isTrainRunningOnDay(s.days, dayInfo.targetDayOfWeek, dayInfo.targetDayIsHoliday))
       .map((s) => {
         const gobaaStop = s.stops.find((st) => st.stationId === 'gobaa');
         const tunisStop = s.stops.find((st) => st.stationId === TUNIS_CENTRAL_ID);
@@ -188,12 +220,13 @@ export function getSynchronizedDeparturesFromTebourba(
         remainingMinutesFromNow: dayInfo.remainingMinutes,
         isPassed: dayInfo.isPassed,
         isTomorrow: dayInfo.isTomorrow,
+        isNextDay: dayInfo.isNextDay,
         targetDayOfWeek: dayInfo.targetDayOfWeek,
         isSundayNoService: dayInfo.isSundayNoService
       });
     } else {
       // No connecting train available for this bus slot
-      // DO NOT invent synthetic wait times or train durations!
+      // Strictly do not invent synthetic numbers
       results.push({
         id: `out-${bus.line}-${bus.departureTime}`,
         busTrip: bus,
@@ -208,6 +241,7 @@ export function getSynchronizedDeparturesFromTebourba(
         remainingMinutesFromNow: dayInfo.remainingMinutes,
         isPassed: dayInfo.isPassed,
         isTomorrow: dayInfo.isTomorrow,
+        isNextDay: dayInfo.isNextDay,
         targetDayOfWeek: dayInfo.targetDayOfWeek,
         isSundayNoService: dayInfo.isSundayNoService
       });
@@ -227,6 +261,7 @@ export function getSynchronizedReturnsFromGobaa(
   currentDayOfWeek: number = 1,
   isHoliday: boolean = false,
   isTomorrowHoliday: boolean = false,
+  isMondayHoliday: boolean = false,
   selectedLine?: '42' | '116'
 ): SynchronizedBusTrainConnection[] {
   const filtered = (selectedLine
@@ -244,13 +279,19 @@ export function getSynchronizedReturnsFromGobaa(
     // To catch this return bus at Gobaa, passenger must arrive at Gobaa at least HUB_TRANSFER_BUFFER_MINUTES (6 min) before
     const latestTrainArrivalAtGobaaM = busDepGobaaM - HUB_TRANSFER_BUFFER_MINUTES;
 
-    const dayInfo = resolveTargetDayForBus(busDepGobaaM, currentTunisiaMinutes, currentDayOfWeek);
-    const targetDayIsHoliday = dayInfo.isTomorrow ? isTomorrowHoliday : isHoliday;
+    const dayInfo = resolveBusTargetDay(
+      busDepGobaaM,
+      currentTunisiaMinutes,
+      currentDayOfWeek,
+      isHoliday,
+      isTomorrowHoliday,
+      isMondayHoliday
+    );
 
     // Inbound trains: Tunis Central -> Gobaa
-    // Filter strictly by day-of-week & holiday circulation rules
+    // Filter strictly by circulation rules for the resolved target day
     const candidateTrains = ALL_SCHEDULES.filter((s) => s.direction === 'inbound')
-      .filter((s) => isTrainRunningOnDay(s.days, dayInfo.targetDayOfWeek, targetDayIsHoliday))
+      .filter((s) => isTrainRunningOnDay(s.days, dayInfo.targetDayOfWeek, dayInfo.targetDayIsHoliday))
       .map((s) => {
         const tunisStop = s.stops.find((st) => st.stationId === TUNIS_CENTRAL_ID);
         const gobaaStop = s.stops.find((st) => st.stationId === 'gobaa');
@@ -276,9 +317,16 @@ export function getSynchronizedReturnsFromGobaa(
       const trainDuration = bestTrain.arrGobaaM - bestTrain.depTunisM;
       const totalDuration = trainDuration + transferWait + BUS_ESTIMATED_TRANSIT_MINUTES;
 
-      // For return trip starting from Tunis: the countdown MUST be to the train departure from Tunis!
+      // In return journey from Tunis, countdown is to the train departure from Tunis!
       const trainDepM = bestTrain.depTunisM;
-      const trainDayInfo = resolveTargetDayForBus(trainDepM, currentTunisiaMinutes, currentDayOfWeek);
+      const trainDayInfo = resolveBusTargetDay(
+        trainDepM,
+        currentTunisiaMinutes,
+        currentDayOfWeek,
+        isHoliday,
+        isTomorrowHoliday,
+        isMondayHoliday
+      );
 
       results.push({
         id: `ret-${bus.line}-${busReturnTime}`,
@@ -299,12 +347,13 @@ export function getSynchronizedReturnsFromGobaa(
         remainingMinutesFromNow: trainDayInfo.remainingMinutes,
         isPassed: trainDayInfo.isPassed,
         isTomorrow: trainDayInfo.isTomorrow,
+        isNextDay: trainDayInfo.isNextDay,
         targetDayOfWeek: dayInfo.targetDayOfWeek,
         isSundayNoService: dayInfo.isSundayNoService
       });
     } else {
       // No connecting train from Tunis exists before this bus departure (e.g. 04:55 bus from Gobaa)
-      // DO NOT invent synthetic wait times or train durations!
+      // Strictly do not invent synthetic numbers
       results.push({
         id: `ret-${bus.line}-${busReturnTime}`,
         busTrip: bus,
@@ -319,6 +368,7 @@ export function getSynchronizedReturnsFromGobaa(
         remainingMinutesFromNow: dayInfo.remainingMinutes,
         isPassed: dayInfo.isPassed,
         isTomorrow: dayInfo.isTomorrow,
+        isNextDay: dayInfo.isNextDay,
         targetDayOfWeek: dayInfo.targetDayOfWeek,
         isSundayNoService: dayInfo.isSundayNoService
       });

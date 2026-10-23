@@ -49,14 +49,18 @@ export const BUS_LINE_42_TRIPS: BusTrip[] = [
 ];
 
 // Line 116 Departures from Tebourba and Returns from Gobaa
-// NOTE: On the municipal poster, in the return column, 09:10 is printed above 08:50.
-// We preserve the printed schedule data exactly as issued, while schedule sorting handles chronological presentation.
+// NOTE ON SOURCE DOCUMENT DATA:
+// In the official municipal flyer, row 4 lists departure 07:10 paired with return 09:10,
+// and row 5 lists departure 07:50 paired with return 08:50.
+// Notice that 09:10 is printed above 08:50 in the return column of the flyer (a likely non-chronological typographic inversion in the flyer).
+// We store the data here exactly in the flyer's row order. When generating return timetables,
+// sorting by returnTime chronologically presents 08:50 then 09:10.
 export const BUS_LINE_116_TRIPS: BusTrip[] = [
   { id: 'b116-1',  line: '116', departureTime: '04:10', returnTime: '04:55', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b116-2',  line: '116', departureTime: '05:30', returnTime: '06:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b116-3',  line: '116', departureTime: '05:50', returnTime: '06:50', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
-  { id: 'b116-4',  line: '116', departureTime: '07:10', returnTime: '08:50', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
-  { id: 'b116-5',  line: '116', departureTime: '07:50', returnTime: '09:10', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
+  { id: 'b116-4',  line: '116', departureTime: '07:10', returnTime: '09:10', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
+  { id: 'b116-5',  line: '116', departureTime: '07:50', returnTime: '08:50', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b116-6',  line: '116', departureTime: '09:10', returnTime: '10:10', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b116-7',  line: '116', departureTime: '09:50', returnTime: '10:50', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b116-8',  line: '116', departureTime: '11:10', returnTime: '12:10', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
