@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "c55ed8548f87e00a7353bc5c071eabaa"
   }, {
     "url": "index.html",
-    "revision": "d8747589ab854da4ce809fbf86c232a9"
+    "revision": "82e2a7ef82c7831b99fee1d8d608a25d"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
@@ -98,13 +98,13 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/jsx-dev-runtime-D-PzxhQO.js",
     "revision": null
   }, {
-    "url": "assets/info-Bou78Vff.js",
+    "url": "assets/info-BKO-oTIz.js",
     "revision": null
   }, {
-    "url": "assets/index-CS0q7lIE.js",
+    "url": "assets/index-_q7zl7Vn.css",
     "revision": null
   }, {
-    "url": "assets/index-BaH2Ayus.css",
+    "url": "assets/index-CKedPFkr.js",
     "revision": null
   }, {
     "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
@@ -113,31 +113,31 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/hero_tunis_rfr_train-BNe31fC4.webp",
     "revision": null
   }, {
-    "url": "assets/circle-check-DRiUvjoV.js",
+    "url": "assets/circle-check-oPseptJh.js",
     "revision": null
   }, {
-    "url": "assets/arrow-right-CPVlJXmI.js",
+    "url": "assets/arrow-right-CxWnz2IE.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-vK6elVmw.js",
+    "url": "assets/StationModal-BBsMie4A.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-CpfuT4IO.js",
+    "url": "assets/OfficialPostersModal-o8HO3x9t.js",
     "revision": null
   }, {
-    "url": "assets/NetworkMap-DiVUwf0M.js",
+    "url": "assets/NetworkMap-CmFO5ZOK.js",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-ClbW3KSi.js",
+    "url": "assets/FullTimetable-Fl448Vgl.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-uFQ4sJW6.js",
+    "url": "assets/FaresCalculator-L4cMMkQf.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-G2sKYjbX.js",
+    "url": "assets/DownloadModal-DBc_X4Yu.js",
     "revision": null
   }, {
-    "url": "assets/BusConnectionView-CdzNSsRA.js",
+    "url": "assets/BusConnectionView-ENaIyv7h.js",
     "revision": null
   }, {
     "url": "assets/aistudio/Screenshot_2026-10-20-22-05-14-193_tn.rfr.tunis_b970d9d4.jpg",

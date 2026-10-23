@@ -19,7 +19,7 @@ import {
   Calendar,
   Info
 } from 'lucide-react';
-import { playRailwayChime } from '../utils/sound';
+import { playRailwayChime, announceCustomStationVoice } from '../utils/sound';
 
 interface BusConnectionViewProps {
   lang: Language;
@@ -79,43 +79,35 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   const nextBus = upcomingConnections[0] || connections[0];
 
   const announceBusVoice = (conn: SynchronizedBusTrainConnection) => {
-    playRailwayChime();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        let announcementText = '';
-        if (lang === 'ar') {
-          if (conn.direction === 'to_gobaa') {
-            announcementText = `حافلة الخط ${conn.busLine} تنطلق من طبربة الساعة ${conn.busDeparture} مع تبديل لقطار RFR بمحطة القباعة.`;
-          } else {
-            announcementText = conn.hasConnectingTrain
-              ? `رحلة العودة لطبربة: قطار الخط D ينطلق من تونس الساعة ${conn.trainDeparture} ثم حافلة ${conn.busLine} من القباعة الساعة ${conn.busDeparture}.`
-              : `حافلة العودة الخط ${conn.busLine} تنطلق من القباعة الساعة ${conn.busDeparture}.`;
-          }
-        } else if (lang === 'fr') {
-          if (conn.direction === 'to_gobaa') {
-            announcementText = `Bus ligne ${conn.busLine} au départ de Tébourba à ${conn.busDeparture}. Correspondance train RFR à Gobâa.`;
-          } else {
-            announcementText = conn.hasConnectingTrain
-              ? `Retour à Tébourba : départ du train de Tunis à ${conn.trainDeparture}, puis bus ${conn.busLine} à Gobâa à ${conn.busDeparture}.`
-              : `Bus retour ligne ${conn.busLine} au départ de Gobâa à ${conn.busDeparture}.`;
-          }
-        } else {
-          if (conn.direction === 'to_gobaa') {
-            announcementText = `Feeder bus line ${conn.busLine} leaves Tebourba at ${conn.busDeparture}. Transfer to RFR train at Gobaa.`;
-          } else {
-            announcementText = conn.hasConnectingTrain
-              ? `Return to Tebourba: train departs Tunis at ${conn.trainDeparture}, connecting to bus ${conn.busLine} at Gobaa at ${conn.busDeparture}.`
-              : `Return bus line ${conn.busLine} leaves Gobaa at ${conn.busDeparture}.`;
-          }
-        }
-
-        const utterance = new SpeechSynthesisUtterance(announcementText);
-        utterance.lang = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr-FR' : 'en-US';
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
-      } catch {}
+    let announcementText = '';
+    const langCode = lang === 'ar' ? 'ar' : lang === 'fr' ? 'fr-FR' : 'en-US';
+    if (lang === 'ar') {
+      if (conn.direction === 'to_gobaa') {
+        announcementText = `حافلة الخط ${conn.busLine} تنطلق من طبربة الساعة ${conn.busDeparture} مع تبديل لقطار RFR بمحطة القباعة.`;
+      } else {
+        announcementText = conn.hasConnectingTrain
+          ? `رحلة العودة لطبربة: قطار الخط D ينطلق من تونس الساعة ${conn.trainDeparture} ثم حافلة ${conn.busLine} من القباعة الساعة ${conn.busDeparture}.`
+          : `حافلة العودة الخط ${conn.busLine} تنطلق من القباعة الساعة ${conn.busDeparture}.`;
+      }
+    } else if (lang === 'fr') {
+      if (conn.direction === 'to_gobaa') {
+        announcementText = `Bus ligne ${conn.busLine} au départ de Tébourba à ${conn.busDeparture}. Correspondance train RFR à Gobâa.`;
+      } else {
+        announcementText = conn.hasConnectingTrain
+          ? `Retour à Tébourba : départ du train de Tunis à ${conn.trainDeparture}, puis bus ${conn.busLine} à Gobâa à ${conn.busDeparture}.`
+          : `Bus retour ligne ${conn.busLine} au départ de Gobâa à ${conn.busDeparture}.`;
+      }
+    } else {
+      if (conn.direction === 'to_gobaa') {
+        announcementText = `Feeder bus line ${conn.busLine} leaves Tebourba at ${conn.busDeparture}. Transfer to RFR train at Gobaa.`;
+      } else {
+        announcementText = conn.hasConnectingTrain
+          ? `Return to Tebourba: train departs Tunis at ${conn.trainDeparture}, connecting to bus ${conn.busLine} at Gobaa at ${conn.busDeparture}.`
+          : `Return bus line ${conn.busLine} leaves Gobaa at ${conn.busDeparture}.`;
+      }
     }
+
+    announceCustomStationVoice(announcementText, langCode, 950);
   };
 
   const handleShareBusTrip = (conn: SynchronizedBusTrainConnection) => {

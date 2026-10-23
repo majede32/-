@@ -14,7 +14,7 @@ def getPackageVersion() {
 
 def getBuildVersionCode() {
     def buildNum = System.getenv("GITHUB_RUN_NUMBER") ?: System.getenv("BUILD_NUMBER")
-    return buildNum ? Integer.parseInt(buildNum) : 1
+    return buildNum ? Integer.parseInt(buildNum) : 2
 }
 
 android {
