@@ -1,5 +1,7 @@
 // Synthesizes a pleasant railway announcement chime and official station voice announcement
-// Optimized for modern browsers, Android Chrome, and Android WebView (Capacitor)
+// Optimized for Native Android (Capacitor TextToSpeech), Chrome, and modern Web browsers
+import { Capacitor } from '@capacitor/core';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { AnyTrip } from '../types/trips';
 import { Language } from '../data/translations';
 
@@ -80,6 +82,22 @@ export async function playRailwayChime(): Promise<void> {
 }
 
 /**
+ * Stops any active speech synthesis across Native Capacitor TTS and Web Speech API.
+ */
+export async function stopAllSpeech(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await TextToSpeech.stop();
+    } catch {}
+  }
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
+  }
+}
+
+/**
  * Builds the official text spoken in station announcements in clear English
  */
 export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
@@ -102,8 +120,7 @@ export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
 }
 
 /**
- * Asynchronously waits for SpeechSynthesis voices to load.
- * Fixes empty voice list issue on Android WebView and cold-start Chromium.
+ * Asynchronously waits for SpeechSynthesis voices to load (Web Speech fallback).
  */
 export function waitForVoices(timeoutMs: number = 400): Promise<SpeechSynthesisVoice[]> {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -176,8 +193,7 @@ export function findBestEnglishFemaleVoice(voices: SpeechSynthesisVoice[]): Spee
   return enVoices[0];
 }
 
-// Retain a module-level reference to the active utterance.
-// This fixes the notorious Chromium / Android WebView bug where SpeechSynthesisUtterance is GC'd mid-speech.
+// Retain a module-level reference to the active utterance to prevent Chrome GC bug
 let activeUtterance: SpeechSynthesisUtterance | null = null;
 
 // Pre-warm voices on startup
@@ -195,16 +211,38 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 /**
  * Plays the official 4-tone chime, followed after realistic station chime duration (~950ms)
  * by the spoken English female station announcement.
- * Fully hardened for Android WebView, Chromium, and iOS.
+ *
+ * Uses Native Android/iOS TTS via @capacitor-community/text-to-speech when running as a native app,
+ * seamlessly falling back to Web Speech API in browsers.
  */
 export async function announceTripStationVoice(trip: AnyTrip, _lang?: Language): Promise<void> {
   // 1. Play railway chime immediately (with AudioContext.resume on user click)
   await playRailwayChime();
 
-  // 2. Pre-load voices concurrently while chime begins
-  const voicesPromise = waitForVoices(400);
+  const text = buildAnnouncementText(trip);
 
-  // 3. Web Speech API Voice Announcement
+  // 2. Realistic station timing pause (~950ms)
+  await new Promise((resolve) => setTimeout(resolve, 950));
+
+  // 3. Priority: Native Android Text-to-Speech (bypasses WebView sandbox directly to Google TTS)
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await TextToSpeech.stop();
+      await TextToSpeech.speak({
+        text,
+        lang: 'en-US',
+        rate: 0.90,
+        pitch: 1.15,
+        volume: 1.0,
+        category: 'ambient',
+      });
+      return;
+    } catch (nativeErr) {
+      console.warn('Native Capacitor TextToSpeech failed, falling back to Web Speech API:', nativeErr);
+    }
+  }
+
+  // 4. Web Speech API Fallback (for Web browsers / Chrome desktop / mobile browsers)
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     console.warn('SpeechSynthesis is not supported on this device/browser');
     return;
@@ -219,11 +257,7 @@ export async function announceTripStationVoice(trip: AnyTrip, _lang?: Language):
       synth.resume();
     }
 
-    // Await realistic railway pause (~950ms) so chime opening notes ring clearly before announcer speaks
-    await new Promise((resolve) => setTimeout(resolve, 950));
-
-    const voices = await voicesPromise;
-    const text = buildAnnouncementText(trip);
+    const voices = await waitForVoices(300);
     const utterance = new SpeechSynthesisUtterance(text);
 
     utterance.lang = 'en-US';
@@ -268,8 +302,7 @@ export async function announceTripStationVoice(trip: AnyTrip, _lang?: Language):
 }
 
 /**
- * Custom speech announcement utility with railway chime, waitForVoices, and Android GC fix.
- * Usable for multimodal bus announcements or custom alerts.
+ * Custom speech announcement utility with railway chime, Native TTS support, and Web Speech fallback.
  */
 export async function announceCustomStationVoice(
   text: string,
@@ -278,24 +311,41 @@ export async function announceCustomStationVoice(
 ): Promise<void> {
   await playRailwayChime();
 
+  if (delayMs > 0) {
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+
+  // 1. Native Android TTS
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await TextToSpeech.stop();
+      await TextToSpeech.speak({
+        text,
+        lang: langCode,
+        rate: 0.90,
+        pitch: 1.05,
+        volume: 1.0,
+        category: 'ambient',
+      });
+      return;
+    } catch (nativeErr) {
+      console.warn('Native Capacitor TextToSpeech failed, falling back to Web Speech API:', nativeErr);
+    }
+  }
+
+  // 2. Web Speech API fallback
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     return;
   }
 
   try {
     const synth = window.speechSynthesis;
-    const voicesPromise = waitForVoices(400);
-
     synth.cancel();
     if (synth.paused) {
       synth.resume();
     }
 
-    if (delayMs > 0) {
-      await new Promise((r) => setTimeout(r, delayMs));
-    }
-
-    const voices = await voicesPromise;
+    const voices = await waitForVoices(300);
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = langCode;
     utterance.rate = 0.90;

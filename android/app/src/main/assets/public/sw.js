@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "c55ed8548f87e00a7353bc5c071eabaa"
   }, {
     "url": "index.html",
-    "revision": "82e2a7ef82c7831b99fee1d8d608a25d"
+    "revision": "e9817e385f16899a71906c7245804a1c"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
@@ -95,16 +95,19 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "apple-touch-icon.png",
     "revision": "78950da1aa497f29996422be1800d71e"
   }, {
+    "url": "assets/web-BW4Mb5Fj.js",
+    "revision": null
+  }, {
     "url": "assets/jsx-dev-runtime-D-PzxhQO.js",
     "revision": null
   }, {
-    "url": "assets/info-BKO-oTIz.js",
+    "url": "assets/info-DNZFP_hd.js",
     "revision": null
   }, {
-    "url": "assets/index-_q7zl7Vn.css",
+    "url": "assets/index-Dh1ARnj-.js",
     "revision": null
   }, {
-    "url": "assets/index-CKedPFkr.js",
+    "url": "assets/index-BaH2Ayus.css",
     "revision": null
   }, {
     "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
@@ -113,31 +116,31 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/hero_tunis_rfr_train-BNe31fC4.webp",
     "revision": null
   }, {
-    "url": "assets/circle-check-oPseptJh.js",
+    "url": "assets/circle-check-BjPV15rb.js",
     "revision": null
   }, {
-    "url": "assets/arrow-right-CxWnz2IE.js",
+    "url": "assets/arrow-right-ClruEfRe.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-BBsMie4A.js",
+    "url": "assets/StationModal-CUJhOSYU.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-o8HO3x9t.js",
+    "url": "assets/OfficialPostersModal-D6m6ZjZV.js",
     "revision": null
   }, {
-    "url": "assets/NetworkMap-CmFO5ZOK.js",
+    "url": "assets/NetworkMap-BoAEsyV3.js",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-Fl448Vgl.js",
+    "url": "assets/FullTimetable-BY9_72Sn.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-L4cMMkQf.js",
+    "url": "assets/FaresCalculator-GhZPrCrH.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-DBc_X4Yu.js",
+    "url": "assets/DownloadModal-BKyr8PW2.js",
     "revision": null
   }, {
-    "url": "assets/BusConnectionView-ENaIyv7h.js",
+    "url": "assets/BusConnectionView-WsLSvJ8n.js",
     "revision": null
   }, {
     "url": "assets/aistudio/Screenshot_2026-10-20-22-05-14-193_tn.rfr.tunis_b970d9d4.jpg",

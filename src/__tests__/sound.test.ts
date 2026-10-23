@@ -4,6 +4,7 @@ import {
   findBestEnglishFemaleVoice,
   waitForVoices,
   playRailwayChime,
+  stopAllSpeech,
   announceTripStationVoice,
   getAudioContext
 } from '../utils/sound';
@@ -118,5 +119,9 @@ describe('Sound & Voice Announcement System', () => {
 
   it('handles AudioContext and chime gracefully in test environment', async () => {
     await expect(playRailwayChime()).resolves.not.toThrow();
+  });
+
+  it('safely executes stopAllSpeech across environments', async () => {
+    await expect(stopAllSpeech()).resolves.not.toThrow();
   });
 });
