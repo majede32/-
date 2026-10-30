@@ -337,22 +337,22 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
               <span className="text-xs text-slate-500 block mb-1">
                 {direction === 'tebourba_to_gobaa'
                   ? t.busDepartureFromTebourba
-                  : (nextBus.hasConnectingTrain ? t.trainDepartureFromTunis : t.busDepartureFromGobaa)}
+                  : t.busDepartureFromGobaa}
               </span>
               <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight" dir="ltr">
-                <bdi>{nextBus.firstLegDepartureTime}</bdi>
+                <bdi>{nextBus.busDeparture}</bdi>
               </span>
-              {direction === 'gobaa_to_tebourba' && nextBus.hasConnectingTrain && (
-                <span className="text-[11px] text-slate-500 block mt-1">
-                  {t.busDepartureFromGobaa}: <strong className="font-mono" dir="ltr">{nextBus.busDeparture}</strong>
-                </span>
-              )}
+              <span className="text-[11px] text-slate-500 block mt-1">
+                {direction === 'tebourba_to_gobaa'
+                  ? `${t.busArrivalAtGobaa}: ${nextBus.busArrival}`
+                  : `${t.busArrivalAtTebourba}: ${nextBus.busArrival}`}
+              </span>
             </div>
 
             <div className="text-end">
               <span className="text-xs text-slate-500 block mb-1">{t.departsIn}</span>
               <span className="text-xl sm:text-2xl font-black text-emerald-700">
-                {renderRemainingTime(nextBus.remainingMinutesFromNow)}
+                {renderRemainingTime(nextBus.busRemainingMinutesFromNow ?? nextBus.remainingMinutesFromNow)}
               </span>
               {nextBus.isNextDay && (
                 <span className="text-[11px] text-amber-700 font-semibold block mt-0.5">
@@ -367,7 +367,11 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
             <div className="flex flex-wrap items-center justify-between text-xs gap-2">
               <span className="font-bold text-slate-700 flex items-center gap-1.5">
                 <Train className="w-4 h-4 text-orange-600 shrink-0" />
-                <span>{t.connectingTrainHeading}</span>
+                <span>
+                  {direction === 'tebourba_to_gobaa'
+                    ? (lang === 'ar' ? 'القطار المتصل من محطة القباعة نحو تونس' : 'Train en correspondance depuis Gobâa vers Tunis')
+                    : (lang === 'ar' ? 'قطار تونس المتصل (للقادمين من برشلونة نحو محطة القباعة)' : 'Train de Tunis en correspondance vers Gobâa')}
+                </span>
               </span>
               <span className="text-slate-500">
                 {t.totalDurationLabel} <strong className="text-slate-800 font-mono" dir="ltr">{nextBus.totalDurationMins} {t.minutes}</strong>
@@ -399,7 +403,9 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
               </div>
             ) : (
               <div className="text-xs text-amber-800 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/80 leading-relaxed">
-                {t.noConnectingTrainForEarlyBus}
+                {direction === 'gobaa_to_tebourba'
+                  ? (lang === 'ar' ? 'سفرة حافلة مباشرة من محطة القباعة إلى طبربة (لا يوجد قطار متصل من تونس قبل هذا الموعد المبكر).' : 'Bus direct depuis la Gare de Gobâa vers Tébourba (pas de train en correspondance depuis Tunis à cette heure matinale).')
+                  : t.noConnectingTrainForEarlyBus}
               </div>
             )}
           </div>

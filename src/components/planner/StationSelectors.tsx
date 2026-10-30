@@ -1,7 +1,18 @@
-import React from 'react';
-import { LINES, TUNIS_CENTRAL_ID, Station } from '../../data/rfrData';
+import React, { useState } from 'react';
+import { LINES, TUNIS_CENTRAL_ID, Station, TEBOURBA_BUS_STATION } from '../../data/rfrData';
 import { TRANSLATIONS, Language } from '../../data/translations';
-import { ArrowUpDown, ChevronDown, Star } from 'lucide-react';
+import { findNearestStation, StationProximity } from '../../utils/geo';
+import {
+  ArrowUpDown,
+  ChevronDown,
+  Star,
+  Navigation,
+  Loader2,
+  Footprints,
+  Car,
+  AlertCircle,
+  X
+} from 'lucide-react';
 
 interface StationSelectorsProps {
   lang: Language;
@@ -35,6 +46,85 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
   onToggleFavorite
 }) => {
   const t = TRANSLATIONS[lang];
+  const [isLocating, setIsLocating] = useState(false);
+  const [detectedProximity, setDetectedProximity] = useState<StationProximity | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  // All valid stations for proximity calculations
+  const allStations = [...LINES.D.stations, TEBOURBA_BUS_STATION];
+
+  // Handler for GPS nearest station detection
+  const handleLocateNearest = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setGeoError(t.locationPermissionError);
+      return;
+    }
+
+    setIsLocating(true);
+    setGeoError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const nearest = findNearestStation(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          allStations,
+          lang
+        );
+        if (nearest) {
+          setDetectedProximity(nearest);
+          onSelectFrom(nearest.station.id);
+
+          // If the nearest station is Tebourba bus station, target is strictly Gobaa
+          if (nearest.station.id === 'tebourba_bus') {
+            onSelectTo('gobaa');
+          } else if (toStationId === nearest.station.id) {
+            // Avoid same origin and destination
+            onSelectTo(nearest.station.id === TUNIS_CENTRAL_ID ? 'gobaa' : TUNIS_CENTRAL_ID);
+          }
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        setGeoError(t.locationPermissionError);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  };
+
+  // Safe origin change enforcing strict Tebourba ⇄ Gobâa pairing
+  const handleFromChange = (newFromId: string) => {
+    if (newFromId === 'tebourba_bus') {
+      onSelectFrom('tebourba_bus');
+      onSelectTo('gobaa');
+      return;
+    }
+    if (toStationId === 'tebourba_bus' && newFromId !== 'gobaa') {
+      onSelectTo(TUNIS_CENTRAL_ID);
+    }
+    onSelectFrom(newFromId);
+  };
+
+  // Safe destination change enforcing strict Tebourba ⇄ Gobâa pairing
+  const handleToChange = (newToId: string) => {
+    if (newToId === 'tebourba_bus') {
+      onSelectTo('tebourba_bus');
+      onSelectFrom('gobaa');
+      return;
+    }
+    if (fromStationId === 'tebourba_bus' && newToId !== 'gobaa') {
+      onSelectFrom('gobaa');
+    }
+    onSelectTo(newToId);
+  };
+
+  const isTebourbaFrom = fromStationId === 'tebourba_bus';
+  const isTebourbaTo = toStationId === 'tebourba_bus';
 
   return (
     <div className="bg-white rounded-3xl p-4 sm:p-7 shadow-xs border border-slate-200 space-y-4 sm:space-y-6">
@@ -78,41 +168,127 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
         </div>
       </div>
 
-      {/* Stations Dropdowns with Swap Button */}
+      {/* Stations Dropdowns with Swap Button & Geolocation */}
       <div className="space-y-2.5 sm:space-y-3 relative">
-        {/* Origin Station Dropdown */}
+        {/* Origin Station Dropdown with Nearest Station Button */}
         <div className="relative">
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-[11px] font-bold text-slate-600">{t.from}</label>
-            {fromStation && (
-              <span className="text-[10px] font-semibold text-slate-500">
-                {lang === 'ar' ? LINES[fromStation.lineId].nameAr : LINES[fromStation.lineId].nameFr}
-              </span>
-            )}
+          <div className="flex items-center justify-between mb-1 gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold text-slate-600">{t.from}</label>
+              {fromStation && (
+                <span className="text-[10px] font-semibold text-slate-500">
+                  {lang === 'ar' ? LINES[fromStation.lineId]?.nameAr || 'ترابط حافلة' : LINES[fromStation.lineId]?.nameFr || 'Bus'}
+                </span>
+              )}
+            </div>
+
+            {/* GPS Nearest Station Quick Button */}
+            <button
+              type="button"
+              onClick={handleLocateNearest}
+              disabled={isLocating}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition-colors disabled:opacity-50 active:scale-95"
+              title={t.locateNearestStation}
+            >
+              {isLocating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-600" />
+              ) : (
+                <Navigation className="w-3.5 h-3.5 text-orange-600" />
+              )}
+              <span>{isLocating ? t.detectingLocation : t.locateNearestStation}</span>
+            </button>
           </div>
+
           <div className="relative">
             <select
               value={fromStationId}
-              onChange={(e) => onSelectFrom(e.target.value)}
+              onChange={(e) => handleFromChange(e.target.value)}
               className="w-full bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-2xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
             >
-              <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (معتمدية طبربة)' : '🚌 Bus de rabattement (Tébourba)'}>
-                <option value="tebourba_bus">
-                  {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116)' : 'Tébourba (Bus 42/116)'}
-                </option>
-              </optgroup>
-              {Object.values(LINES).map((line) => (
-                <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
-                  {line.stations.map((st) => (
-                    <option key={`${line.id}-${st.id}`} value={st.id}>
-                      {lang === 'ar' ? st.nameAr : st.nameFr}
-                    </option>
-                  ))}
+              {isTebourbaTo ? (
+                // When destination is Tebourba bus, origin is strictly Gobaa
+                <optgroup label={lang === 'ar' ? 'محطة الانطلاق الحصرية للحافلة' : 'Gare de départ exclusive du bus'}>
+                  <option value="gobaa">
+                    {lang === 'ar' ? 'القباعة (محطة قطار RFR الترابطية)' : 'Gobâa (Gare de correspondance RFR)'}
+                  </option>
                 </optgroup>
-              ))}
+              ) : (
+                <>
+                  <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (طبربة ⇄ محطة القباعة)' : '🚌 Bus de rabattement (Tébourba ⇄ Gare de Gobâa)'}>
+                    <option value="tebourba_bus">
+                      {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116 ⇄ محطة القباعة)' : 'Tébourba (Bus 42/116 ⇄ Gare de Gobâa)'}
+                    </option>
+                  </optgroup>
+                  {Object.values(LINES).map((line) => (
+                    <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
+                      {line.stations.map((st) => (
+                        <option key={`${line.id}-${st.id}`} value={st.id}>
+                          {st.id === 'gobaa'
+                            ? (lang === 'ar' ? 'القباعة (محطة ترابط حافلات طبربة 42 و116)' : 'Gobâa (Gare de correspondance Bus 42/116)')
+                            : (lang === 'ar' ? st.nameAr : st.nameFr)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </>
+              )}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 left-3 rtl:left-3 rtl:right-auto ltr:right-3 ltr:left-auto pointer-events-none" />
           </div>
+
+          {/* GPS Proximity Badge if detected */}
+          {detectedProximity && (
+            <div className="mt-2 bg-orange-50/80 border border-orange-200 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-orange-900 flex items-center gap-1">
+                  <Navigation className="w-3.5 h-3.5 text-orange-600" />
+                  {t.nearestStationToYou}: {lang === 'ar' ? detectedProximity.station.nameAr : detectedProximity.station.nameFr}
+                </span>
+                <span className="bg-orange-100 text-orange-800 px-2 py-0.5 rounded-md font-semibold text-[11px]">
+                  {detectedProximity.formattedDistance}
+                </span>
+                <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                  <Footprints className="w-3 h-3 text-slate-500" />
+                  {detectedProximity.formattedWalk} {t.walkEstimate}
+                </span>
+                <span className="text-slate-600 flex items-center gap-1 text-[11px]">
+                  <Car className="w-3 h-3 text-slate-500" />
+                  {detectedProximity.formattedDrive} {t.driveEstimate}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetectedProximity(null)}
+                className="text-slate-400 hover:text-slate-600 p-0.5"
+                aria-label="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Geo error banner */}
+          {geoError && (
+            <div className="mt-2 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-2.5 flex items-center gap-2 text-xs">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{geoError}</span>
+              <button
+                type="button"
+                onClick={() => setGeoError(null)}
+                className="ml-auto text-amber-700 font-bold text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Strict Notice when Tebourba is Departure */}
+          {isTebourbaFrom && (
+            <div className="mt-1.5 text-[11px] font-semibold text-emerald-800 bg-emerald-50/90 border border-emerald-200 rounded-xl px-3 py-1.5 flex items-center gap-1.5">
+              <span>🚌</span>
+              <span>{t.tebourbaOnlyGobaaNotice}</span>
+            </div>
+          )}
         </div>
 
         {/* Swap Button */}
@@ -139,26 +315,47 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
           <div className="relative">
             <select
               value={toStationId}
-              onChange={(e) => onSelectTo(e.target.value)}
+              onChange={(e) => handleToChange(e.target.value)}
               className="w-full bg-slate-50 hover:bg-slate-100/70 border border-slate-200 rounded-2xl py-2.5 px-3.5 sm:py-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-900 appearance-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
             >
-              <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (معتمدية طبربة)' : '🚌 Bus de rabattement (Tébourba)'}>
-                <option value="tebourba_bus">
-                  {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116)' : 'Tébourba (Bus 42/116)'}
-                </option>
-              </optgroup>
-              {Object.values(LINES).map((line) => (
-                <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
-                  {line.stations.map((st) => (
-                    <option key={`${line.id}-${st.id}`} value={st.id}>
-                      {lang === 'ar' ? st.nameAr : st.nameFr}
-                    </option>
-                  ))}
+              {isTebourbaFrom ? (
+                // When origin is Tebourba bus, destination is strictly Gobaa
+                <optgroup label={lang === 'ar' ? 'محطة الوصول الحصرية للحافلة' : 'Destination exclusive du bus'}>
+                  <option value="gobaa">
+                    {lang === 'ar' ? 'القباعة (محطة قطار RFR الترابطية)' : 'Gobâa (Gare de correspondance RFR)'}
+                  </option>
                 </optgroup>
-              ))}
+              ) : (
+                <>
+                  <optgroup label={lang === 'ar' ? '🚌 حافلات الترابط (طبربة ⇄ محطة القباعة)' : '🚌 Bus de rabattement (Tébourba ⇄ Gare de Gobâa)'}>
+                    <option value="tebourba_bus">
+                      {lang === 'ar' ? 'طبربة (ترابط الحافلة 42/116 ⇄ محطة القباعة)' : 'Tébourba (Bus 42/116 ⇄ Gare de Gobâa)'}
+                    </option>
+                  </optgroup>
+                  {Object.values(LINES).map((line) => (
+                    <optgroup key={line.id} label={`${line.code} - ${lang === 'ar' ? line.nameAr : line.nameFr}`}>
+                      {line.stations.map((st) => (
+                        <option key={`${line.id}-${st.id}`} value={st.id}>
+                          {st.id === 'gobaa'
+                            ? (lang === 'ar' ? 'القباعة (محطة ترابط حافلات طبربة 42 و116)' : 'Gobâa (Gare de correspondance Bus 42/116)')
+                            : (lang === 'ar' ? st.nameAr : st.nameFr)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </>
+              )}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 left-3 rtl:left-3 rtl:right-auto ltr:right-3 ltr:left-auto pointer-events-none" />
           </div>
+
+          {/* Strict Notice when Tebourba is Destination */}
+          {isTebourbaTo && (
+            <div className="mt-1.5 text-[11px] font-semibold text-teal-800 bg-teal-50/90 border border-teal-200 rounded-xl px-3 py-1.5 flex items-center gap-1.5">
+              <span>🚌</span>
+              <span>{t.tebourbaOnlyGobaaNotice}</span>
+            </div>
+          )}
         </div>
 
         {/* Quick Route Shortcuts & Favorites */}
@@ -167,8 +364,8 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
             <button
               onClick={() => {
                 onSelectLine('D');
-                onSelectFrom('gobaa');
-                onSelectTo(TUNIS_CENTRAL_ID);
+                handleFromChange('gobaa');
+                handleToChange(TUNIS_CENTRAL_ID);
               }}
               className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >
@@ -177,28 +374,28 @@ export const StationSelectors: React.FC<StationSelectorsProps> = ({
             <button
               onClick={() => {
                 onSelectLine('D');
-                onSelectFrom('tebourba_bus');
-                onSelectTo(TUNIS_CENTRAL_ID);
+                handleFromChange('tebourba_bus');
+                handleToChange('gobaa');
               }}
               className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
             >
-              <span>🚌 طبربة ➔ تونس</span>
+              <span>🚌 طبربة ➔ القباعة</span>
             </button>
             <button
               onClick={() => {
                 onSelectLine('D');
-                onSelectFrom(TUNIS_CENTRAL_ID);
-                onSelectTo('tebourba_bus');
+                handleFromChange('gobaa');
+                handleToChange('tebourba_bus');
               }}
               className="text-[11px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-300 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
             >
-              <span>🚌 تونس ➔ طبربة (عودة)</span>
+              <span>🚌 القباعة ➔ طبربة</span>
             </button>
             <button
               onClick={() => {
                 onSelectLine('D');
-                onSelectFrom('manouba');
-                onSelectTo(TUNIS_CENTRAL_ID);
+                handleFromChange('manouba');
+                handleToChange(TUNIS_CENTRAL_ID);
               }}
               className="text-[11px] font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
             >

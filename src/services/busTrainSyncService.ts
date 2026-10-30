@@ -35,6 +35,7 @@ export interface SynchronizedBusTrainConnection {
   totalDurationMins: number;
   firstLegDepartureTime: string; // The time passenger begins trip (bus in outbound; train from Tunis in return)
   remainingMinutesFromNow: number;
+  busRemainingMinutesFromNow?: number;
   isPassed: boolean;
   isTomorrow: boolean;
   isNextDay: boolean;
@@ -345,6 +346,7 @@ export function getSynchronizedReturnsFromGobaa(
         totalDurationMins: totalDuration,
         firstLegDepartureTime: bestTrain.tunisTime, // Train departure from Tunis!
         remainingMinutesFromNow: trainDayInfo.remainingMinutes,
+        busRemainingMinutesFromNow: dayInfo.remainingMinutes,
         isPassed: trainDayInfo.isPassed,
         isTomorrow: trainDayInfo.isTomorrow,
         isNextDay: trainDayInfo.isNextDay,
@@ -366,6 +368,7 @@ export function getSynchronizedReturnsFromGobaa(
         totalDurationMins: BUS_ESTIMATED_TRANSIT_MINUTES,
         firstLegDepartureTime: busReturnTime,
         remainingMinutesFromNow: dayInfo.remainingMinutes,
+        busRemainingMinutesFromNow: dayInfo.remainingMinutes,
         isPassed: dayInfo.isPassed,
         isTomorrow: dayInfo.isTomorrow,
         isNextDay: dayInfo.isNextDay,

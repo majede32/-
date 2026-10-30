@@ -162,32 +162,42 @@ describe('Return Countdown Alignment to Tunis Train Departure', () => {
   });
 });
 
-describe('Multimodal Search Integration', () => {
-  it('successfully returns multimodal trips from Tebourba to Tunis Central', () => {
-    const trips = searchTrips('tebourba_bus', 'tunis_central', 360, 1, 'ar', false, false);
-    expect(trips.length).toBeGreaterThan(0);
-    const firstTrip = trips[0];
-    expect(firstTrip.type).toBe('multimodal_bus');
-    if (firstTrip.type === 'multimodal_bus') {
-      expect(firstTrip.direction).toBe('tebourba_to_tunis');
-      expect(['42', '116']).toContain(firstTrip.busLine);
-      expect(firstTrip.transferStation.id).toBe('gobaa');
-      expect(firstTrip.trainTrip).toBeDefined();
-    }
+describe('Tebourba Feeder Bus Strict Pairing with Gobaa', () => {
+  it('strictly returns empty results when paired with any station other than Gobaa', () => {
+    // Tebourba to Manouba, Tunis Central, or Le Bardo has no direct service
+    const tripsToManouba = searchTrips('tebourba_bus', 'manouba', 360, 1, 'ar', false, false);
+    expect(tripsToManouba).toHaveLength(0);
+
+    const tripsToTunis = searchTrips('tebourba_bus', 'tunis_central', 360, 1, 'ar', false, false);
+    expect(tripsToTunis).toHaveLength(0);
+
+    const tripsFromManouba = searchTrips('manouba', 'tebourba_bus', 360, 1, 'ar', false, false);
+    expect(tripsFromManouba).toHaveLength(0);
   });
 
-  it('successfully returns multimodal return trips from Tunis Central to Tebourba', () => {
-    const trips = searchTrips('tunis_central', 'tebourba_bus', 360, 1, 'ar', false, false);
-    expect(trips.length).toBeGreaterThan(0);
-    const firstTrip = trips[0];
-    expect(firstTrip.type).toBe('multimodal_bus');
-    if (firstTrip.type === 'multimodal_bus') {
-      expect(firstTrip.direction).toBe('tunis_to_tebourba');
-      expect(['42', '116']).toContain(firstTrip.busLine);
-      expect(firstTrip.transferStation.id).toBe('gobaa');
-      expect(firstTrip.trainTrip).toBeDefined();
-      // Departure time is the train departure from Tunis!
-      expect(firstTrip.departureTime).toBe(firstTrip.trainTrip.departureTime);
+  it('successfully returns direct bus trips between Tebourba and Gobaa Station', () => {
+    // Tebourba -> Gobaa Station
+    const directToGobaa = searchTrips('tebourba_bus', 'gobaa', 360, 1, 'ar', false, false);
+    expect(directToGobaa.length).toBeGreaterThan(0);
+    const tripToGobaa = directToGobaa[0];
+    expect(tripToGobaa.type).toBe('multimodal_bus');
+    if (tripToGobaa.type === 'multimodal_bus') {
+      expect(tripToGobaa.direction).toBe('tebourba_to_gobaa');
+      expect(['42', '116']).toContain(tripToGobaa.busLine);
+      expect(tripToGobaa.trainTrip).toBeUndefined();
+      expect(tripToGobaa.durationMinutes).toBe(BUS_ESTIMATED_TRANSIT_MINUTES);
+    }
+
+    // Gobaa Station -> Tebourba
+    const directFromGobaa = searchTrips('gobaa', 'tebourba_bus', 360, 1, 'ar', false, false);
+    expect(directFromGobaa.length).toBeGreaterThan(0);
+    const tripFromGobaa = directFromGobaa[0];
+    expect(tripFromGobaa.type).toBe('multimodal_bus');
+    if (tripFromGobaa.type === 'multimodal_bus') {
+      expect(tripFromGobaa.direction).toBe('gobaa_to_tebourba');
+      expect(['42', '116']).toContain(tripFromGobaa.busLine);
+      expect(tripFromGobaa.trainTrip).toBeUndefined();
+      expect(tripFromGobaa.durationMinutes).toBe(BUS_ESTIMATED_TRANSIT_MINUTES);
     }
   });
 });

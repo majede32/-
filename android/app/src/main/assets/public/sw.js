@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "c55ed8548f87e00a7353bc5c071eabaa"
   }, {
     "url": "index.html",
-    "revision": "e9817e385f16899a71906c7245804a1c"
+    "revision": "a039aa3a80155ac739cd8b63055a8800"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
@@ -95,19 +95,19 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "apple-touch-icon.png",
     "revision": "78950da1aa497f29996422be1800d71e"
   }, {
-    "url": "assets/web-BW4Mb5Fj.js",
+    "url": "assets/web-YflZtNiG.js",
     "revision": null
   }, {
-    "url": "assets/jsx-dev-runtime-D-PzxhQO.js",
+    "url": "assets/jsx-dev-runtime-D7BnGtkn.js",
     "revision": null
   }, {
-    "url": "assets/info-DNZFP_hd.js",
+    "url": "assets/info-A92WgC3L.js",
     "revision": null
   }, {
-    "url": "assets/index-Dh1ARnj-.js",
+    "url": "assets/index-R-xWgE8k.css",
     "revision": null
   }, {
-    "url": "assets/index-BaH2Ayus.css",
+    "url": "assets/index-Bs8_kkqA.js",
     "revision": null
   }, {
     "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
@@ -116,31 +116,37 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/hero_tunis_rfr_train-BNe31fC4.webp",
     "revision": null
   }, {
-    "url": "assets/circle-check-BjPV15rb.js",
+    "url": "assets/circle-check-ClDhxyOa.js",
     "revision": null
   }, {
-    "url": "assets/arrow-right-ClruEfRe.js",
+    "url": "assets/arrow-right-CYgPsLki.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-CUJhOSYU.js",
+    "url": "assets/StationModal-COgq6mIS.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-D6m6ZjZV.js",
+    "url": "assets/OfficialPostersModal-BWzg90gZ.js",
     "revision": null
   }, {
-    "url": "assets/NetworkMap-BoAEsyV3.js",
+    "url": "assets/NetworkMap-vh-t_kPv.css",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-BY9_72Sn.js",
+    "url": "assets/NetworkMap-DwSnVlyM.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-GhZPrCrH.js",
+    "url": "assets/FullTimetable-Boq8VVe9.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-BKyr8PW2.js",
+    "url": "assets/FaresCalculator-CCziN9EV.js",
     "revision": null
   }, {
-    "url": "assets/BusConnectionView-WsLSvJ8n.js",
+    "url": "assets/DownloadModal-CLofdwPM.js",
+    "revision": null
+  }, {
+    "url": "assets/BusConnectionView-DMGHBv7Y.js",
+    "revision": null
+  }, {
+    "url": "assets/aistudio/Screenshot_2026-10-24-13-05-43-295_com.android.chrome_f21b4d04.jpg",
     "revision": null
   }, {
     "url": "assets/aistudio/Screenshot_2026-10-20-22-05-14-193_tn.rfr.tunis_b970d9d4.jpg",

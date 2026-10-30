@@ -16,13 +16,13 @@ export interface DirectTrip {
 
 export interface MultimodalBusTrainTrip {
   type: 'multimodal_bus';
-  direction: 'tebourba_to_tunis' | 'tunis_to_tebourba';
+  direction: 'tebourba_to_tunis' | 'tunis_to_tebourba' | 'tebourba_to_gobaa' | 'gobaa_to_tebourba';
   busLine: '42' | '116';
   busDeparture: string;
   busArrival: string;
   transferStation: Station;
   transferWaitMinutes: number;
-  trainTrip: DirectTrip;
+  trainTrip?: DirectTrip;
   departureTime: string;
   arrivalTime: string;
   durationMinutes: number;

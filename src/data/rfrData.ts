@@ -5,6 +5,8 @@ export interface Station {
   nameEn: string;
   lineId: string;
   order: number;
+  lat?: number;
+  lng?: number;
   connections?: string[]; // e.g., ['Metro 4', 'Bus', 'TGM']
   facilities?: string[]; // e.g., ['Guichet', 'Parking', 'Accessible PMR']
 }
@@ -65,16 +67,16 @@ export const LINES: Record<string, LineInfo> = {
     badgeText: 'text-orange-600',
     activeBorder: 'border-orange-500 ring-orange-500/30',
     stations: [
-      { id: 'gobaa_ville', nameAr: 'القباعة المدينة', nameFr: 'Gobaa Ville', nameEn: 'Gobaa Ville', lineId: 'D', order: 1, connections: ['Bus'], facilities: ['Guichet', 'Parking'] },
-      { id: 'gobaa', nameAr: 'القباعة', nameFr: 'Gobaa', nameEn: 'Gobaa', lineId: 'D', order: 2, connections: ['Bus'] },
-      { id: 'les_orangers', nameAr: 'حي البرتقال', nameFr: 'Les Orangers', nameEn: 'Les Orangers', lineId: 'D', order: 3 },
-      { id: 'manouba', nameAr: 'منوبة', nameFr: 'Manouba', nameEn: 'Manouba', lineId: 'D', order: 4, connections: ['Metro 4', 'Bus'], facilities: ['Guichet', 'Parking'] },
-      { id: 'el_bortal', nameAr: 'البرطال', nameFr: 'El Bortal', nameEn: 'El Bortal', lineId: 'D', order: 5 },
-      { id: 'le_bardo', nameAr: 'باردو', nameFr: 'Le Bardo', nameEn: 'Le Bardo', lineId: 'D', order: 6, connections: ['Metro 4', 'Bus'], facilities: ['Guichet', 'PMR'] },
-      { id: 'erraoudha', nameAr: 'الروضة', nameFr: 'Erraoudha', nameEn: 'Erraoudha', lineId: 'D', order: 7 },
-      { id: 'mellassine', nameAr: 'الملاسين', nameFr: 'Mellassine', nameEn: 'Mellassine', lineId: 'D', order: 8 },
-      { id: 'saida_manoubia_d', nameAr: 'السيدة المنوبية', nameFr: 'Saïda Manoubia', nameEn: 'Saida Manoubia', lineId: 'D', order: 9, connections: ['Metro 1, 6'] },
-      { id: TUNIS_CENTRAL_ID, nameAr: 'تونس (محطة برشلونة)', nameFr: 'Tunis (Place Barcelone)', nameEn: 'Tunis Central', lineId: 'D', order: 10, connections: ['Metro 1..6', 'SNCFT', 'TGM'], facilities: ['Guichet', 'PMR', 'Parking'] }
+      { id: 'gobaa_ville', nameAr: 'القباعة المدينة', nameFr: 'Gobaa Ville', nameEn: 'Gobaa Ville', lineId: 'D', order: 1, lat: 36.8241, lng: 10.0520, connections: ['Bus'], facilities: ['Guichet', 'Parking'] },
+      { id: 'gobaa', nameAr: 'القباعة', nameFr: 'Gobaa', nameEn: 'Gobaa', lineId: 'D', order: 2, lat: 36.8197, lng: 10.0614, connections: ['Bus'] },
+      { id: 'les_orangers', nameAr: 'حي البرتقال', nameFr: 'Les Orangers', nameEn: 'Les Orangers', lineId: 'D', order: 3, lat: 36.8122, lng: 10.0768 },
+      { id: 'manouba', nameAr: 'منوبة', nameFr: 'Manouba', nameEn: 'Manouba', lineId: 'D', order: 4, lat: 36.8087, lng: 10.0961, connections: ['Metro 4', 'Bus'], facilities: ['Guichet', 'Parking'] },
+      { id: 'el_bortal', nameAr: 'البرطال', nameFr: 'El Bortal', nameEn: 'El Bortal', lineId: 'D', order: 5, lat: 36.8118, lng: 10.1115 },
+      { id: 'le_bardo', nameAr: 'باردو', nameFr: 'Le Bardo', nameEn: 'Le Bardo', lineId: 'D', order: 6, lat: 36.8094, lng: 10.1292, connections: ['Metro 4', 'Bus'], facilities: ['Guichet', 'PMR'] },
+      { id: 'erraoudha', nameAr: 'الروضة', nameFr: 'Erraoudha', nameEn: 'Erraoudha', lineId: 'D', order: 7, lat: 36.8021, lng: 10.1365 },
+      { id: 'mellassine', nameAr: 'الملاسين', nameFr: 'Mellassine', nameEn: 'Mellassine', lineId: 'D', order: 8, lat: 36.7972, lng: 10.1472 },
+      { id: 'saida_manoubia_d', nameAr: 'السيدة المنوبية', nameFr: 'Saïda Manoubia', nameEn: 'Saida Manoubia', lineId: 'D', order: 9, lat: 36.7915, lng: 10.1628, connections: ['Metro 1, 6'] },
+      { id: TUNIS_CENTRAL_ID, nameAr: 'تونس (محطة برشلونة)', nameFr: 'Tunis (Place Barcelone)', nameEn: 'Tunis Central', lineId: 'D', order: 10, lat: 36.7949, lng: 10.1805, connections: ['Metro 1..6', 'SNCFT', 'TGM'], facilities: ['Guichet', 'PMR', 'Parking'] }
     ]
   }
 };
@@ -295,6 +297,8 @@ export const TEBOURBA_BUS_STATION: Station = {
   nameEn: 'Tebourba (Bus 42/116)',
   lineId: 'D',
   order: 0,
+  lat: 36.8306,
+  lng: 9.8417,
   connections: ['حافلة 42', 'حافلة 116 (الترابط مع قطار RFR بالقباعة)'],
   facilities: ['محطة حافلات ترابط طبربة']
 };

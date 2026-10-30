@@ -5,7 +5,7 @@ import { TRANSLATIONS, Language } from '../../data/translations';
 import { getDaysBadgeInfo } from '../../services/tripSearchEngine';
 import { announceTripStationVoice } from '../../utils/sound';
 import { TripTimeline } from './TripTimeline';
-import { Calendar, Volume2, Bell, Share2, Bus, Train, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Calendar, Volume2, Bell, Share2, Bus, Train, ArrowRight, ArrowLeft, Map } from 'lucide-react';
 
 interface NextTripHeroCardProps {
   trip: AnyTrip;
@@ -15,6 +15,7 @@ interface NextTripHeroCardProps {
   onSetReminder: (trip: AnyTrip) => void;
   onShareTrip: (trip: AnyTrip) => void;
   onSelectStationModal: (station: Station) => void;
+  onTrackOnMap?: (trainNumber: string) => void;
 }
 
 export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
@@ -24,9 +25,17 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
   onToggleStops,
   onSetReminder,
   onShareTrip,
-  onSelectStationModal
+  onSelectStationModal,
+  onTrackOnMap
 }) => {
   const t = TRANSLATIONS[lang];
+
+  const trainNumber =
+    trip.type === 'direct'
+      ? trip.schedule.trainNumber
+      : trip.trainTrip
+      ? trip.trainTrip.schedule.trainNumber
+      : null;
 
   return (
     <div className="bg-white rounded-3xl p-4 sm:p-7 shadow-xs border border-slate-200 space-y-4 sm:space-y-5">
@@ -45,6 +54,17 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {trainNumber && onTrackOnMap && (
+            <button
+              onClick={() => onTrackOnMap(trainNumber)}
+              title={t.trackTrainOnMap}
+              aria-label={t.trackTrainOnMap}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-300 font-bold text-xs transition-colors shadow-xs active:scale-95"
+            >
+              <Map className="w-3.5 h-3.5 text-orange-700" />
+              <span className="hidden sm:inline">{t.trackTrainOnMap}</span>
+            </button>
+          )}
           <button
             onClick={() => announceTripStationVoice(trip, lang)}
             title={lang === 'ar' ? 'إعلان صوتي رسمي بالإنجليزية (جرس وصوت نسائي)' : 'Official station announcement in English (chime & voice)'}
@@ -125,48 +145,88 @@ export const NextTripHeroCard: React.FC<NextTripHeroCardProps> = ({
       {/* Multimodal vs Direct Details */}
       {trip.type === 'multimodal_bus' ? (
         <div className="space-y-3 pt-2">
-          <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
-            <span>مراحل الرحلة المدمجة (حافلة طبربة + قطار RFR)</span>
-            <span className="text-slate-500 font-mono">{trip.durationMinutes} دقيقة إجمالاً</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-            {/* Step 1 */}
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
-              <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-1">
-                <Bus className="w-4 h-4" />
-                <span>المرحلة 1: {trip.direction === 'tebourba_to_tunis' ? `حافلة الخط ${trip.busLine}` : `قطار RFR ${trip.trainTrip.schedule.trainNumber}`}</span>
+          {trip.trainTrip ? (
+            <>
+              <div className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                <span>{lang === 'ar' ? 'مراحل الرحلة المدمجة (حافلة طبربة + قطار RFR)' : 'Étapes du trajet combiné (Bus Tébourba + Train RFR)'}</span>
+                <span className="text-slate-500 font-mono">{trip.durationMinutes} {lang === 'ar' ? 'دقيقة إجمالاً' : 'min'}</span>
               </div>
-              <p className="text-[11px] text-slate-600">
-                {trip.direction === 'tebourba_to_tunis'
-                  ? `من طبربة (${trip.busDeparture}) ➔ محطة القباعة (${trip.busArrival})`
-                  : `من تونس (${trip.trainTrip.departureTime}) ➔ محطة القباعة (${trip.trainTrip.arrivalTime})`}
-              </p>
-            </div>
 
-            {/* Step 2: Transfer */}
-            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col justify-center">
-              <span className="text-amber-800 font-bold mb-1">
-                ⏱️ ترابط بالرصيف (محطة القباعة)
-              </span>
-              <p className="text-[11px] text-slate-600">
-                انتظار وتبديل: <strong>{trip.transferWaitMinutes} دق</strong>
-              </p>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                {/* Step 1 */}
+                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                  <div className="flex items-center gap-1.5 text-emerald-800 font-bold mb-1">
+                    <Bus className="w-4 h-4" />
+                    <span>
+                      {lang === 'ar' ? 'المرحلة 1: ' : 'Étape 1 : '}
+                      {trip.direction === 'tebourba_to_tunis'
+                        ? (lang === 'ar' ? `حافلة الخط ${trip.busLine}` : `Bus Ligne ${trip.busLine}`)
+                        : (lang === 'ar' ? `قطار RFR ${trip.trainTrip.schedule.trainNumber}` : `Train RFR ${trip.trainTrip.schedule.trainNumber}`)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {trip.direction === 'tebourba_to_tunis'
+                      ? (lang === 'ar' ? `من طبربة (${trip.busDeparture}) ➔ محطة القباعة (${trip.busArrival})` : `De Tébourba (${trip.busDeparture}) ➔ Gare de Gobâa (${trip.busArrival})`)
+                      : (lang === 'ar' ? `من ${trip.trainTrip.originStation.nameAr} (${trip.trainTrip.departureTime}) ➔ محطة القباعة (${trip.trainTrip.arrivalTime})` : `De ${trip.trainTrip.originStation.nameFr} (${trip.trainTrip.departureTime}) ➔ Gare de Gobâa (${trip.trainTrip.arrivalTime})`)}
+                  </p>
+                </div>
 
-            {/* Step 3 */}
-            <div className="p-3 rounded-2xl bg-orange-50 border border-orange-200">
-              <div className="flex items-center gap-1.5 text-orange-800 font-bold mb-1">
-                <Train className="w-4 h-4" />
-                <span>المرحلة 2: {trip.direction === 'tebourba_to_tunis' ? `قطار RFR ${trip.trainTrip.schedule.trainNumber}` : `حافلة العودة الخط ${trip.busLine}`}</span>
+                {/* Step 2: Transfer at Gobaa */}
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col justify-center">
+                  <span className="text-amber-800 font-bold mb-1">
+                    ⏱️ {lang === 'ar' ? 'ترابط بالرصيف (محطة القباعة)' : 'Correspondance à quai (Gare de Gobâa)'}
+                  </span>
+                  <p className="text-[11px] text-slate-600">
+                    {lang === 'ar' ? `انتظار وتبديل: ${trip.transferWaitMinutes} دق` : `Attente & transit : ${trip.transferWaitMinutes} min`}
+                  </p>
+                </div>
+
+                {/* Step 3 */}
+                <div className="p-3 rounded-2xl bg-orange-50 border border-orange-200">
+                  <div className="flex items-center gap-1.5 text-orange-800 font-bold mb-1">
+                    <Train className="w-4 h-4" />
+                    <span>
+                      {lang === 'ar' ? 'المرحلة 2: ' : 'Étape 2 : '}
+                      {trip.direction === 'tebourba_to_tunis'
+                        ? (lang === 'ar' ? `قطار RFR ${trip.trainTrip.schedule.trainNumber}` : `حافلة العودة الخط ${trip.busLine}`)
+                        : (lang === 'ar' ? `حافلة العودة الخط ${trip.busLine}` : `Bus retour Ligne ${trip.busLine}`)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {trip.direction === 'tebourba_to_tunis'
+                      ? (lang === 'ar' ? `من محطة القباعة (${trip.trainTrip.departureTime}) ➔ ${trip.destinationStation.nameAr} (${trip.trainTrip.arrivalTime})` : `De Gare de Gobâa (${trip.trainTrip.departureTime}) ➔ ${trip.destinationStation.nameFr} (${trip.trainTrip.arrivalTime})`)
+                      : (lang === 'ar' ? `من محطة القباعة (${trip.busDeparture}) ➔ طبربة (${trip.busArrival})` : `De Gare de Gobâa (${trip.busDeparture}) ➔ Tébourba (${trip.busArrival})`)}
+                  </p>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-600">
-                {trip.direction === 'tebourba_to_tunis'
-                  ? `من محطة القباعة (${trip.trainTrip.departureTime}) ➔ ${lang === 'ar' ? trip.destinationStation.nameAr : trip.destinationStation.nameFr} (${trip.trainTrip.arrivalTime})`
-                  : `من محطة القباعة (${trip.busDeparture}) ➔ طبربة (${trip.busArrival})`}
+            </>
+          ) : (
+            /* Direct Bus: Tebourba ⇄ Gobaa Station */
+            <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 space-y-2 text-xs">
+              <div className="flex items-center justify-between font-bold text-emerald-900">
+                <span className="flex items-center gap-2">
+                  <Bus className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>
+                    {lang === 'ar'
+                      ? `سفرة مباشرة بحافلة الخط ${trip.busLine} (طبربة ⇄ محطة القباعة)`
+                      : `Trajet direct par Bus Ligne ${trip.busLine} (Tébourba ⇄ Gare de Gobâa)`}
+                  </span>
+                </span>
+                <span className="font-mono text-emerald-800 font-black">
+                  ~{trip.durationMinutes} {lang === 'ar' ? 'دقيقة' : 'min'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                {trip.direction === 'tebourba_to_gobaa'
+                  ? (lang === 'ar'
+                      ? `انطلاق الحافلة من طبربة في تمام ${trip.busDeparture} ➔ الوصول إلى محطة القباعة في ${trip.busArrival}. محطة القباعة هي محطة الترابط لنهاية مسار الحافلة والالتقاء بقطار RFR (الخط D).`
+                      : `Départ du bus de Tébourba à ${trip.busDeparture} ➔ Arrivée à la Gare de Gobâa à ${trip.busArrival}. La Gare de Gobâa est le terminus du bus et le point de correspondance avec le train RFR Ligne D.`)
+                  : (lang === 'ar'
+                      ? `انطلاق حافلة العودة من محطة القباعة في تمام ${trip.busDeparture} ➔ الوصول إلى طبربة في ${trip.busArrival}.`
+                      : `Départ du bus retour depuis la Gare de Gobâa à ${trip.busDeparture} ➔ Arrivée à Tébourba à ${trip.busArrival}.`)}
               </p>
             </div>
-          </div>
+          )}
         </div>
       ) : (
         <>

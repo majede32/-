@@ -52,7 +52,8 @@ export function useTripSearch(
   currentDayOfWeek: number,
   lang: Language,
   isHoliday: boolean = false,
-  isTomorrowHoliday: boolean = false
+  isTomorrowHoliday: boolean = false,
+  routeOverride?: { from?: string; to?: string } | null
 ): UseTripSearchResult {
   const t = TRANSLATIONS[lang];
 
@@ -61,6 +62,16 @@ export function useTripSearch(
   const [fromStationId, setFromStationId] = useState<string>(initialRoute.from);
   const [toStationId, setToStationId] = useState<string>(initialRoute.to);
   const [showStops, setShowStops] = useState<boolean>(true);
+
+  // Apply routeOverride when changed
+  useEffect(() => {
+    if (routeOverride?.from) {
+      handleSelectFrom(routeOverride.from);
+    }
+    if (routeOverride?.to) {
+      handleSelectTo(routeOverride.to);
+    }
+  }, [routeOverride]);
 
   // Sync deep link query params to URL
   useEffect(() => {
@@ -120,6 +131,32 @@ export function useTripSearch(
   const nextTrip = allTrips[0];
   const followingTrips = useMemo(() => allTrips.slice(1, 6), [allTrips]);
 
+  const handleSelectFrom = (stationId: string) => {
+    if (stationId === 'tebourba_bus') {
+      // Tebourba feeder bus operates STRICTLY to/from Gobaa Station!
+      setFromStationId('tebourba_bus');
+      setToStationId('gobaa');
+      return;
+    }
+    if (toStationId === 'tebourba_bus' && stationId !== 'gobaa') {
+      setToStationId(TUNIS_CENTRAL_ID);
+    }
+    setFromStationId(stationId);
+  };
+
+  const handleSelectTo = (stationId: string) => {
+    if (stationId === 'tebourba_bus') {
+      // Tebourba feeder bus operates STRICTLY to/from Gobaa Station!
+      setToStationId('tebourba_bus');
+      setFromStationId('gobaa');
+      return;
+    }
+    if (fromStationId === 'tebourba_bus' && stationId !== 'gobaa') {
+      setFromStationId('gobaa');
+    }
+    setToStationId(stationId);
+  };
+
   const handleSwapStations = () => {
     const temp = fromStationId;
     setFromStationId(toStationId);
@@ -147,7 +184,9 @@ export function useTripSearch(
     announceTripStationVoice(trip, lang);
     const trainNum = trip.type === 'direct'
       ? trip.schedule.trainNumber
-      : `حافلة ${trip.busLine} + قطار ${trip.trainTrip.schedule.trainNumber}`;
+      : trip.trainTrip
+      ? `حافلة ${trip.busLine} + قطار ${trip.trainTrip.schedule.trainNumber}`
+      : `حافلة ${trip.busLine}`;
     const alertMsg = t.reminderAlert
       .replace('{train}', trainNum)
       .replace('{time}', trip.departureTime);
@@ -190,9 +229,9 @@ export function useTripSearch(
     selectedLineId,
     setSelectedLineId,
     fromStationId,
-    setFromStationId,
+    setFromStationId: handleSelectFrom,
     toStationId,
-    setToStationId,
+    setToStationId: handleSelectTo,
     fromStation,
     toStation,
     isCrossLine,

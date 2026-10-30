@@ -112,7 +112,10 @@ export function buildAnnouncementText(trip: AnyTrip, _lang?: Language): string {
       : `departing in ${remaining} minute${remaining > 1 ? 's' : ''}`;
 
   if (trip.type === 'multimodal_bus') {
-    return `Attention please. Combined journey with feeder bus line ${trip.busLine} and RFR train, from ${origin} to ${dest}, departing at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
+    if (trip.trainTrip) {
+      return `Attention please. Combined journey with feeder bus line ${trip.busLine} and RFR train, from ${origin} to ${dest}, departing at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
+    }
+    return `Attention please. Direct feeder bus line ${trip.busLine}, from ${origin} to ${dest}, departing at ${depTime}. ${remainingPhrase}. Have a pleasant journey.`;
   }
 
   const trainNum = trip.schedule.trainNumber;

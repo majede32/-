@@ -20,6 +20,8 @@ interface TripPlannerProps {
   onOpenTimeModal: () => void;
   isHoliday?: boolean;
   isTomorrowHoliday?: boolean;
+  routeOverride?: { from?: string; to?: string } | null;
+  onTrackOnMap?: (trainNumber: string) => void;
 }
 
 export const TripPlanner: React.FC<TripPlannerProps> = ({
@@ -29,7 +31,9 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
   currentTunisiaMinutes,
   currentDayOfWeek,
   isHoliday = false,
-  isTomorrowHoliday = false
+  isTomorrowHoliday = false,
+  routeOverride,
+  onTrackOnMap
 }) => {
   const t = TRANSLATIONS[lang];
 
@@ -54,7 +58,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
     copiedToast,
     handleSetReminder,
     handleShareTrip
-  } = useTripSearch(currentTunisiaMinutes, currentDayOfWeek, lang, isHoliday, isTomorrowHoliday);
+  } = useTripSearch(currentTunisiaMinutes, currentDayOfWeek, lang, isHoliday, isTomorrowHoliday, routeOverride);
 
   return (
     <div className="space-y-6">
@@ -102,6 +106,7 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
             onSetReminder={handleSetReminder}
             onShareTrip={handleShareTrip}
             onSelectStationModal={onSelectStationModal}
+            onTrackOnMap={onTrackOnMap}
           />
 
           {/* Following Upcoming Departures */}
@@ -109,12 +114,20 @@ export const TripPlanner: React.FC<TripPlannerProps> = ({
         </div>
       ) : (
         <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 space-y-3 shadow-xs">
-          <AlertCircle className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900">{t.noMoreTrainsToday}</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {lang === 'ar'
-              ? 'يرجى تغيير محطة الانطلاق أو الوصول، أو اختبار التوقيت عبر زر محاكاة الوقت.'
-              : 'Veuillez changer les stations ou simuler une autre heure.'}
+          <AlertCircle className={`w-10 h-10 mx-auto ${fromStationId === 'tebourba_bus' || toStationId === 'tebourba_bus' ? 'text-amber-500' : 'text-slate-400'}`} />
+          <h3 className="text-base font-bold text-slate-900">
+            {fromStationId === 'tebourba_bus' || toStationId === 'tebourba_bus'
+              ? (lang === 'ar' ? 'حافلات طبربة (42 و 116) ترتبط حصراً بمحطة القباعة' : 'Les bus de Tébourba (42 et 116) relient uniquement la Gare de Gobâa')
+              : t.noMoreTrainsToday}
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+            {fromStationId === 'tebourba_bus' || toStationId === 'tebourba_bus'
+              ? (lang === 'ar'
+                  ? 'خطوط الحافلات 42 و 116 مخصصة حصراً للربط بين معتمدية طبربة ومحطة قطار القباعة (ولا تخدم مباشرة المحطات الأخرى). يرجى اختيار محطة القباعة.'
+                  : 'Les lignes 42 et 116 assurent exclusivement la liaison entre Tébourba et la Gare de Gobâa. Veuillez sélectionner la Gare de Gobâa.')
+              : (lang === 'ar'
+                  ? 'يرجى تغيير محطة الانطلاق أو الوصول، أو اختبار التوقيت عبر زر محاكاة الوقت.'
+                  : 'Veuillez changer les stations ou simuler une autre heure.')}
           </p>
         </div>
       )}

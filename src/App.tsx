@@ -60,6 +60,8 @@ export default function App() {
   // Modals state
   const [posterModalLine, setPosterModalLine] = useState<string | null>(null);
   const [inspectedStation, setInspectedStation] = useState<Station | null>(null);
+  const [plannerRouteOverride, setPlannerRouteOverride] = useState<{ from?: string; to?: string } | null>(null);
+  const [focusedMapTrainNumber, setFocusedMapTrainNumber] = useState<string | null>(null);
 
   const t = TRANSLATIONS[lang];
   const isOnline = useOnlineStatus();
@@ -156,6 +158,11 @@ export default function App() {
               onOpenTimeModal={() => setIsTimeModalOpen(true)}
               isHoliday={tunisiaTimeInfo.isHoliday}
               isTomorrowHoliday={isTomorrowHoliday}
+              routeOverride={plannerRouteOverride}
+              onTrackOnMap={(trainNum) => {
+                setFocusedMapTrainNumber(trainNum);
+                setActiveTab('map');
+              }}
             />
           )}
 
@@ -182,7 +189,20 @@ export default function App() {
             <Suspense fallback={<ViewLoadingFallback />}>
               <NetworkMap
                 lang={lang}
-                onSelectStation={(_lineId, _stationId, _role) => {
+                currentTunisiaMinutes={tunisiaTimeInfo.totalMinutes}
+                currentDayOfWeek={tunisiaTimeInfo.dayOfWeek}
+                isHoliday={tunisiaTimeInfo.isHoliday}
+                isSimulated={isSimulated}
+                focusedTrainNumber={focusedMapTrainNumber}
+                onSelectStation={(_lineId, stationId, _role) => {
+                  if (stationId === 'tebourba_bus') {
+                    setPlannerRouteOverride({ from: 'tebourba_bus', to: 'gobaa' });
+                  } else {
+                    setPlannerRouteOverride({
+                      from: stationId,
+                      to: stationId === 'tunis_central' ? 'gobaa' : 'tunis_central'
+                    });
+                  }
                   setActiveTab('planner');
                 }}
               />

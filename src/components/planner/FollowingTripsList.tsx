@@ -23,7 +23,9 @@ export const FollowingTripsList: React.FC<FollowingTripsListProps> = ({ trips, l
         {trips.map((ft, idx) => {
           const trainLabel = ft.type === 'direct'
             ? `${t.train} ${ft.schedule.trainNumber}`
-            : `حافلة ${ft.busLine} + قطار ${ft.trainTrip.schedule.trainNumber}`;
+            : ft.trainTrip
+            ? `${lang === 'ar' ? `حافلة ${ft.busLine} + قطار ${ft.trainTrip.schedule.trainNumber}` : `Bus ${ft.busLine} + Train ${ft.trainTrip.schedule.trainNumber}`}`
+            : `${lang === 'ar' ? `حافلة مباشرة (الخط ${ft.busLine})` : `Bus direct (Ligne ${ft.busLine})`}`;
           const duration = ft.durationMinutes;
 
           return (
