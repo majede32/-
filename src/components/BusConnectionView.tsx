@@ -1,10 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { TRANSLATIONS, Language } from '../data/translations';
 import {
   getSynchronizedDeparturesFromTebourba,
   getSynchronizedReturnsFromGobaa,
   SynchronizedBusTrainConnection
 } from '../services/busTrainSyncService';
+import { BUS_ESTIMATED_TRANSIT_MINUTES, parseTimeToMinutes, ActiveBusRide } from '../data/busConnectionData';
+import { GeolocationState } from '../hooks/useGeolocation';
+import { LiveRideTrackerCard } from './bus/LiveRideTrackerCard';
 import {
   Bus,
   Train,
@@ -17,7 +20,8 @@ import {
   Compass,
   AlertCircle,
   Calendar,
-  Info
+  Info,
+  Navigation
 } from 'lucide-react';
 import { playRailwayChime, announceCustomStationVoice } from '../utils/sound';
 
@@ -28,6 +32,9 @@ interface BusConnectionViewProps {
   isHoliday?: boolean;
   isTomorrowHoliday?: boolean;
   isMondayHoliday?: boolean;
+  geo: GeolocationState;
+  onUpdateBusRide?: (ride: ActiveBusRide | null) => void;
+  onOpenMap?: () => void;
 }
 
 export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
@@ -36,13 +43,18 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   currentDayOfWeek,
   isHoliday = false,
   isTomorrowHoliday = false,
-  isMondayHoliday = false
+  isMondayHoliday = false,
+  geo,
+  onUpdateBusRide,
+  onOpenMap
 }) => {
   const t = TRANSLATIONS[lang];
   const [direction, setDirection] = useState<'tebourba_to_gobaa' | 'gobaa_to_tebourba'>('tebourba_to_gobaa');
   const [selectedLine, setSelectedLine] = useState<'all' | '42' | '116'>('all');
   const [isPosterModalOpen, setIsPosterModalOpen] = useState(false);
   const [copiedTripId, setCopiedTripId] = useState<string | null>(null);
+  const [manualTrackedBusId, setManualTrackedBusId] = useState<string | null>(null);
+  const trackerRef = useRef<HTMLDivElement>(null);
 
   const activeLineFilter = selectedLine === 'all' ? undefined : selectedLine;
 
@@ -77,6 +89,40 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
   }, [connections]);
 
   const nextBus = upcomingConnections[0] || connections[0];
+
+  // Auto-detect any bus currently in transit at current Tunisia time
+  const inTransitBus = useMemo(() => {
+    if (isSunday || isHoliday) return undefined;
+    return connections.find((c) => {
+      const depM = parseTimeToMinutes(c.busDeparture);
+      return currentTunisiaMinutes >= depM && currentTunisiaMinutes <= depM + BUS_ESTIMATED_TRANSIT_MINUTES;
+    });
+  }, [connections, currentTunisiaMinutes, isSunday, isHoliday]);
+
+  const activeTrackedBusId = useMemo(() => {
+    if (manualTrackedBusId && connections.some((c) => c.id === manualTrackedBusId)) {
+      return manualTrackedBusId;
+    }
+    return inTransitBus?.id || nextBus?.id || connections[0]?.id || '';
+  }, [manualTrackedBusId, connections, inTransitBus, nextBus]);
+
+  const handleTrackBus = (busId: string) => {
+    setManualTrackedBusId(busId);
+    const conn = connections.find((c) => c.id === busId);
+    if (conn) {
+      onUpdateBusRide?.({
+        busId: conn.id,
+        line: conn.busLine,
+        direction,
+        departureTime: conn.busDeparture,
+        isUserOnBoard: true
+      });
+    }
+    if (!geo.isWatching) {
+      geo.startWatching();
+    }
+    trackerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const announceBusVoice = (conn: SynchronizedBusTrainConnection) => {
     let announcementText = '';
@@ -286,6 +332,23 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
         </div>
       </div>
 
+      {/* Live GPS Ride Tracker Card */}
+      <div ref={trackerRef} className="scroll-mt-4">
+        <LiveRideTrackerCard
+          lang={lang}
+          connections={connections}
+          selectedBusId={activeTrackedBusId}
+          onSelectBusId={(id) => setManualTrackedBusId(id)}
+          direction={direction}
+          currentTunisiaMinutes={currentTunisiaMinutes}
+          currentDayOfWeek={currentDayOfWeek}
+          isHoliday={isHoliday}
+          geo={geo}
+          onUpdateBusRide={onUpdateBusRide}
+          onOpenMap={onOpenMap}
+        />
+      </div>
+
       {/* Hero Next Trip Card */}
       {nextBus && (
         <div className="bg-white rounded-3xl p-5 sm:p-6 shadow-md border-2 border-emerald-500/30 relative overflow-hidden">
@@ -484,13 +547,29 @@ export const BusConnectionView: React.FC<BusConnectionViewProps> = ({
                   </div>
                 )}
 
-                <div className="text-end shrink-0">
-                  <span className="text-xs font-bold text-slate-700 font-mono block" dir="ltr">
-                    {c.totalDurationMins} {t.minutes}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">
-                    {c.isPassed ? 'مضت' : renderRemainingTime(c.remainingMinutesFromNow)}
-                  </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-end">
+                    <span className="text-xs font-bold text-slate-700 font-mono block" dir="ltr">
+                      {c.totalDurationMins} {t.minutes}
+                    </span>
+                    <span className="text-[10px] text-slate-400 block">
+                      {c.isPassed ? 'مضت' : renderRemainingTime(c.remainingMinutesFromNow)}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleTrackBus(c.id)}
+                    title={t.trackThisBusBtn}
+                    className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 ${
+                      activeTrackedBusId === c.id
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}
+                  >
+                    <Navigation className="w-3 h-3" />
+                    <span className="hidden sm:inline">{t.trackThisBusBtn}</span>
+                  </button>
                 </div>
               </div>
             </div>

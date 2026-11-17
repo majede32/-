@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LINES, Station, TEBOURBA_BUS_STATION, TUNIS_CENTRAL_ID } from '../data/rfrData';
 import { TRANSLATIONS, Language } from '../data/translations';
 import { calculateStationProximities, StationProximity, WALKING_SPEED_KMH, DRIVING_SPEED_KMH } from '../utils/geo';
+import { ActiveBusRide } from '../data/busConnectionData';
+import { GeolocationState, useGeolocation } from '../hooks/useGeolocation';
+import { useOnlineStatus } from '../hooks/usePWAInstall';
 import { LiveTrainMap } from './map/LiveTrainMap';
+import { GoogleLiveTrainMap } from './map/GoogleLiveTrainMap';
 import {
   Navigation,
   Loader2,
@@ -27,6 +31,9 @@ interface NetworkMapProps {
   isHoliday?: boolean;
   isSimulated?: boolean;
   focusedTrainNumber?: string | null;
+  geo?: GeolocationState;
+  activeBusRide?: ActiveBusRide | null;
+  onUpdateBusRide?: (ride: ActiveBusRide | null) => void;
 }
 
 export const NetworkMap: React.FC<NetworkMapProps> = ({
@@ -36,17 +43,40 @@ export const NetworkMap: React.FC<NetworkMapProps> = ({
   currentTunisiaMinutes = 480, // 08:00 default fallback
   currentDayOfWeek = 1,
   isHoliday = false,
-  focusedTrainNumber
+  focusedTrainNumber,
+  geo,
+  activeBusRide,
+  onUpdateBusRide
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // Map view toggle: 'live_map' (geospatial with animated trains) vs 'schematic' (clean line diagram)
+  // Map view toggle: 'live_map' (real Google Maps / offline fallback) vs 'schematic' (clean line diagram)
   const [viewMode, setViewMode] = useState<'live_map' | 'schematic'>('live_map');
+  const [googleMapFailed, setGoogleMapFailed] = useState(false);
+  const isOnline = useOnlineStatus();
 
-  // Geolocation state
-  const [isLocating, setIsLocating] = useState(false);
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number; accuracy?: number } | null>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
+  const googleMapsApiKey =
+    import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
+    (typeof process !== 'undefined'
+      ? (process.env?.GOOGLE_MAPS_API_KEY as string | undefined)
+      : undefined) ||
+    '';
+
+  useEffect(() => {
+    const handleQuota = () => setGoogleMapFailed(true);
+    window.addEventListener('gmp-quota-exceeded', handleQuota);
+    return () => window.removeEventListener('gmp-quota-exceeded', handleQuota);
+  }, []);
+
+  const canUseGoogleMaps = Boolean(googleMapsApiKey) && isOnline && !googleMapFailed;
+
+  // Shared or fallback geolocation state
+  const localGeo = useGeolocation();
+  const activeGeo = geo || localGeo;
+
+  const userCoords = activeGeo.coords;
+  const isLocating = activeGeo.loading;
+  const geoError = activeGeo.error ? t.locationPermissionError : null;
 
   // All network stations with coordinates
   const allStations: Station[] = [...LINES.D.stations, TEBOURBA_BUS_STATION];
@@ -59,33 +89,7 @@ export const NetworkMap: React.FC<NetworkMapProps> = ({
   const nearestStation = proximities.length > 0 ? proximities[0] : null;
 
   const handleLocateMe = () => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setGeoError(t.locationPermissionError);
-      return;
-    }
-
-    setIsLocating(true);
-    setGeoError(null);
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setIsLocating(false);
-        setUserCoords({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
-        });
-      },
-      (err) => {
-        setIsLocating(false);
-        setGeoError(t.locationPermissionError);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
-      }
-    );
+    void activeGeo.requestLocation();
   };
 
   return (
@@ -134,17 +138,41 @@ export const NetworkMap: React.FC<NetworkMapProps> = ({
         </button>
       </div>
 
-      {/* Main View Content: Live Train Map or Schematic Diagram */}
+      {/* Main View Content: Real Google Maps (or Offline Fallback) vs Schematic Diagram */}
       {viewMode === 'live_map' ? (
-        <LiveTrainMap
-          lang={lang}
-          currentTunisiaMinutes={currentTunisiaMinutes}
-          currentDayOfWeek={currentDayOfWeek}
-          isHoliday={isHoliday}
-          onSelectStation={onSelectStation}
-          userCoords={userCoords}
-          focusedTrainNumber={focusedTrainNumber}
-        />
+        canUseGoogleMaps ? (
+          <GoogleLiveTrainMap
+            apiKey={googleMapsApiKey}
+            lang={lang}
+            currentTunisiaMinutes={currentTunisiaMinutes}
+            currentDayOfWeek={currentDayOfWeek}
+            isHoliday={isHoliday}
+            onSelectStation={onSelectStation}
+            userCoords={userCoords}
+            focusedTrainNumber={focusedTrainNumber}
+            activeBusRide={activeBusRide}
+            onUpdateBusRide={onUpdateBusRide}
+            isWatchingGps={activeGeo.isWatching}
+            onStartGpsWatch={activeGeo.startWatching}
+            onStopGpsWatch={activeGeo.stopWatching}
+            onFallbackToOffline={() => setGoogleMapFailed(true)}
+          />
+        ) : (
+          <LiveTrainMap
+            lang={lang}
+            currentTunisiaMinutes={currentTunisiaMinutes}
+            currentDayOfWeek={currentDayOfWeek}
+            isHoliday={isHoliday}
+            onSelectStation={onSelectStation}
+            userCoords={userCoords}
+            focusedTrainNumber={focusedTrainNumber}
+            activeBusRide={activeBusRide}
+            onUpdateBusRide={onUpdateBusRide}
+            isWatchingGps={activeGeo.isWatching}
+            onStartGpsWatch={activeGeo.startWatching}
+            onStopGpsWatch={activeGeo.stopWatching}
+          />
+        )
       ) : (
         /* Schematic Diagram View */
         <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-sm border border-slate-200 space-y-6">

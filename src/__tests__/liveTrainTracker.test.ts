@@ -56,15 +56,18 @@ describe('Live Train Tracker Engine', () => {
     expect(earlyMorning.nextUpcomingTrain?.departureTime).toBe('04:30');
   });
 
-  it('tracks feeder bus positions on operating days', () => {
-    // Bus 42 departs Tebourba at 06:30 and reaches Gobaa in ~40 mins (07:10)
-    // At 06:50, bus should be mid-transit
-    const busSnapshot = getLiveTransitPositions(parseTimeToMinutes('06:50'), 1, false);
+  it('tracks feeder bus positions on operating days along the road corridor', () => {
+    // Bus 42 departs Tebourba at 06:15 and reaches Gobaa in ~40 mins (06:55)
+    // At 06:35, bus should be mid-transit along El Battan -> Jedeida -> Essaida corridor
+    const busSnapshot = getLiveTransitPositions(parseTimeToMinutes('06:35'), 1, false);
     const bus = busSnapshot.activeBuses.find((b) => b.line === '42');
 
     expect(bus).toBeDefined();
     expect(bus?.direction).toBe('tebourba_to_gobaa');
     expect(bus?.progress).toBeGreaterThan(0.3);
     expect(bus?.progress).toBeLessThan(0.7);
+    expect(bus?.currentLat).toBeGreaterThan(36.825);
+    expect(bus?.currentLng).toBeGreaterThan(9.9);
   });
 });
+

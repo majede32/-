@@ -28,6 +28,14 @@ export interface BusConnectionSchedule {
   estimatedDurationMins: number;
 }
 
+export interface ActiveBusRide {
+  busId: string;
+  line: '42' | '116';
+  direction: 'tebourba_to_gobaa' | 'gobaa_to_tebourba';
+  departureTime: string;
+  isUserOnBoard: boolean;
+}
+
 /**
  * Feeder buses operate Monday to Saturday (days 1 through 6 in standard JS Date, 0 is Sunday).
  */
@@ -39,7 +47,7 @@ export function isBusOperatingDay(dayOfWeek: number): boolean {
 // (8 departures from Tebourba, 7 returns from Gobaa - slot after 18:30 is blank on poster)
 export const BUS_LINE_42_TRIPS: BusTrip[] = [
   { id: 'b42-1', line: '42', departureTime: '04:50', returnTime: '05:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
-  { id: 'b42-2', line: '42', departureTime: '06:30', returnTime: '07:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
+  { id: 'b42-2', line: '42', departureTime: '06:15', returnTime: '07:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b42-3', line: '42', departureTime: '08:30', returnTime: '09:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b42-4', line: '42', departureTime: '10:30', returnTime: '11:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
   { id: 'b42-5', line: '42', departureTime: '12:20', returnTime: '13:30', daysDescriptionAr: 'من الإثنين إلى السبت', daysDescriptionFr: 'Du lundi au samedi', daysDescriptionEn: 'Monday to Saturday' },
@@ -151,4 +159,37 @@ export const TEBOURBA_STATION = {
   nameEn: 'Tebourba (Bus 42/116)',
   hubStationId: 'gobaa',
   connections: ['الحافلة 42', 'الحافلة 116']
+};
+
+export interface BusRouteWaypoint {
+  lat: number;
+  lng: number;
+  nameAr: string;
+  nameFr: string;
+}
+
+/**
+ * Verified TRANSTU Feeder Bus corridors from Tebourba to Gobâa RFR Station:
+ * - Line 42 (~25 km): Tebourba -> El Battan -> Jedeida -> Essaïda -> Carrefour Bejaoua -> Oued Ellil -> Gare RFR Gobâa
+ * - Line 116 (~26 km): Tebourba -> Ed Dhehiba / Jedeida El Jadida -> Jedeida -> Essaïda -> Carrefour Bejaoua -> Oued Ellil -> Gare RFR Gobâa
+ */
+export const BUS_ROUTE_WAYPOINTS: Record<'42' | '116', BusRouteWaypoint[]> = {
+  '42': [
+    { lat: 36.8306, lng: 9.8417, nameAr: 'طبربة', nameFr: 'Tébourba' },
+    { lat: 36.8037, lng: 9.8442, nameAr: 'البطان', nameFr: 'El Battan' },
+    { lat: 36.8493, lng: 9.9353, nameAr: 'الجديدة', nameFr: 'Jedeida' },
+    { lat: 36.8276, lng: 9.9698, nameAr: 'السعيدة', nameFr: 'Essaïda' },
+    { lat: 36.8361, lng: 10.0136, nameAr: 'مفترق بجاوة', nameFr: 'Carrefour Bejaoua' },
+    { lat: 36.8333, lng: 10.0500, nameAr: 'وادي الليل', nameFr: 'Oued Ellil' },
+    { lat: 36.8197, lng: 10.0614, nameAr: 'محطة القباعة (RFR)', nameFr: 'Gare RFR Gobâa' }
+  ],
+  '116': [
+    { lat: 36.8306, lng: 9.8417, nameAr: 'طبربة', nameFr: 'Tébourba' },
+    { lat: 36.8398, lng: 9.8516, nameAr: 'الذنيبة / طريق الجديدة', nameFr: 'Ed Dhehiba' },
+    { lat: 36.8493, lng: 9.9353, nameAr: 'الجديدة', nameFr: 'Jedeida' },
+    { lat: 36.8276, lng: 9.9698, nameAr: 'السعيدة', nameFr: 'Essaïda' },
+    { lat: 36.8361, lng: 10.0136, nameAr: 'مفترق بجاوة', nameFr: 'Carrefour Bejaoua' },
+    { lat: 36.8333, lng: 10.0500, nameAr: 'وادي الليل', nameFr: 'Oued Ellil' },
+    { lat: 36.8197, lng: 10.0614, nameAr: 'محطة القباعة (RFR)', nameFr: 'Gare RFR Gobâa' }
+  ]
 };

@@ -87,7 +87,7 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "revision": "c55ed8548f87e00a7353bc5c071eabaa"
   }, {
     "url": "index.html",
-    "revision": "a039aa3a80155ac739cd8b63055a8800"
+    "revision": "5164f8de8e810f8c365083b4ee88e38b"
   }, {
     "url": "icon.svg",
     "revision": "6ae11c1adff79c04094349711807b181"
@@ -95,7 +95,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "apple-touch-icon.png",
     "revision": "78950da1aa497f29996422be1800d71e"
   }, {
-    "url": "assets/web-YflZtNiG.js",
+    "url": "assets/web-B9LUE1e0.js",
+    "revision": null
+  }, {
+    "url": "assets/radio-CbtVo04J.js",
     "revision": null
   }, {
     "url": "assets/jsx-dev-runtime-D7BnGtkn.js",
@@ -104,10 +107,10 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/info-A92WgC3L.js",
     "revision": null
   }, {
-    "url": "assets/index-R-xWgE8k.css",
+    "url": "assets/index-DGydu7kn.css",
     "revision": null
   }, {
-    "url": "assets/index-Bs8_kkqA.js",
+    "url": "assets/index-CzFnryXb.js",
     "revision": null
   }, {
     "url": "assets/hero_tunis_rfr_train_mobile-LnR4J0-l.webp",
@@ -122,28 +125,28 @@ define(['./workbox-afac4cd2'], (function (workbox) { 'use strict';
     "url": "assets/arrow-right-CYgPsLki.js",
     "revision": null
   }, {
-    "url": "assets/StationModal-COgq6mIS.js",
+    "url": "assets/StationModal-Bh8Ga3GN.js",
     "revision": null
   }, {
-    "url": "assets/OfficialPostersModal-BWzg90gZ.js",
+    "url": "assets/OfficialPostersModal-BhRAe4JJ.js",
     "revision": null
   }, {
     "url": "assets/NetworkMap-vh-t_kPv.css",
     "revision": null
   }, {
-    "url": "assets/NetworkMap-DwSnVlyM.js",
+    "url": "assets/NetworkMap-PNN9PzTW.js",
     "revision": null
   }, {
-    "url": "assets/FullTimetable-Boq8VVe9.js",
+    "url": "assets/FullTimetable-BmqMy-sd.js",
     "revision": null
   }, {
-    "url": "assets/FaresCalculator-CCziN9EV.js",
+    "url": "assets/FaresCalculator-DMY5iG9q.js",
     "revision": null
   }, {
-    "url": "assets/DownloadModal-CLofdwPM.js",
+    "url": "assets/DownloadModal-BKoadfWD.js",
     "revision": null
   }, {
-    "url": "assets/BusConnectionView-DMGHBv7Y.js",
+    "url": "assets/BusConnectionView-BxI157mf.js",
     "revision": null
   }, {
     "url": "assets/aistudio/Screenshot_2026-10-24-13-05-43-295_com.android.chrome_f21b4d04.jpg",

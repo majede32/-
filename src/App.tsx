@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { TRANSLATIONS, Language } from './data/translations';
 import { Station } from './data/rfrData';
+import { ActiveBusRide } from './data/busConnectionData';
 import { TripPlanner } from './components/TripPlanner';
 import { Navbar } from './components/layout/Navbar';
 import { HeroBanner } from './components/layout/HeroBanner';
@@ -15,6 +16,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { getTunisiaTime, TunisiaTimeInfo } from './utils/tunisiaTime';
 import { checkTunisianHoliday } from './utils/tunisianHolidays';
 import { usePWAInstall, useOnlineStatus } from './hooks/usePWAInstall';
+import { useGeolocation } from './hooks/useGeolocation';
 import { WifiOff, Loader2 } from 'lucide-react';
 
 // Code Splitting / Lazy Loading for heavy views and modals
@@ -66,6 +68,16 @@ export default function App() {
   const t = TRANSLATIONS[lang];
   const isOnline = useOnlineStatus();
   const { isInstallable, install } = usePWAInstall();
+  const geo = useGeolocation();
+  const [gmpQuotaExceeded, setGmpQuotaExceeded] = useState(false);
+  const [activeBusRide, setActiveBusRide] = useState<ActiveBusRide | null>(null);
+
+  // Listen for Google Maps quota/auth failure events at top-level context
+  useEffect(() => {
+    const handleQuotaExceeded = () => setGmpQuotaExceeded(true);
+    window.addEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+    return () => window.removeEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+  }, []);
 
   // Sync HTML lang and dir attribute
   useEffect(() => {
@@ -111,6 +123,24 @@ export default function App() {
   return (
     <ErrorBoundary>
       <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-100/70 text-slate-900 pb-24 md:pb-12">
+        {/* Google Maps Platform Quota Notice Banner */}
+        {gmpQuotaExceeded && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
+            <span>
+              Google Maps Platform quota reached. If you are the app owner, visit{' '}
+              <a
+                href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-semibold text-amber-950 hover:text-amber-800"
+              >
+                maps developer site
+              </a>{' '}
+              for instructions to update your account.
+            </span>
+          </div>
+        )}
+
         {/* Offline Banner Indicator */}
         {!isOnline && (
           <div className="bg-amber-600 text-white text-xs py-2 px-4 text-center font-bold flex items-center justify-center gap-2 shadow-xs">
@@ -181,6 +211,9 @@ export default function App() {
                 isHoliday={tunisiaTimeInfo.isHoliday}
                 isTomorrowHoliday={isTomorrowHoliday}
                 isMondayHoliday={isMondayHoliday}
+                geo={geo}
+                onUpdateBusRide={setActiveBusRide}
+                onOpenMap={() => setActiveTab('map')}
               />
             </Suspense>
           )}
@@ -194,6 +227,9 @@ export default function App() {
                 isHoliday={tunisiaTimeInfo.isHoliday}
                 isSimulated={isSimulated}
                 focusedTrainNumber={focusedMapTrainNumber}
+                geo={geo}
+                activeBusRide={activeBusRide}
+                onUpdateBusRide={setActiveBusRide}
                 onSelectStation={(_lineId, stationId, _role) => {
                   if (stationId === 'tebourba_bus') {
                     setPlannerRouteOverride({ from: 'tebourba_bus', to: 'gobaa' });

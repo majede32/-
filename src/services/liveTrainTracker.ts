@@ -9,8 +9,13 @@ import {
   findStationById,
   TEBOURBA_BUS_STATION
 } from '../data/rfrData';
-import { ALL_BUS_TRIPS, isBusOperatingDay, BUS_ESTIMATED_TRANSIT_MINUTES } from '../data/busConnectionData';
-import { calculateDistanceKm } from '../utils/geo';
+import {
+  ALL_BUS_TRIPS,
+  BUS_ROUTE_WAYPOINTS,
+  isBusOperatingDay,
+  BUS_ESTIMATED_TRANSIT_MINUTES
+} from '../data/busConnectionData';
+import { calculateDistanceKm, interpolateAlongWaypoints } from '../utils/geo';
 
 export interface LiveTrainPosition {
   trainNumber: string;
@@ -244,13 +249,14 @@ export function getLiveTransitPositions(
         const depTebourbaM = parseTimeToMinutes(bus.departureTime);
         const arrGobaaM = depTebourbaM + BUS_ESTIMATED_TRANSIT_MINUTES;
 
+        const routePoints = BUS_ROUTE_WAYPOINTS[bus.line];
+
         if (targetMinutes >= depTebourbaM && targetMinutes <= arrGobaaM) {
           const elapsed = targetMinutes - depTebourbaM;
           const progress = elapsed / BUS_ESTIMATED_TRANSIT_MINUTES;
           const minsToArr = arrGobaaM - targetMinutes;
 
-          const lat = tebourbaStation.lat + (gobaaStation.lat - tebourbaStation.lat) * progress;
-          const lng = tebourbaStation.lng + (gobaaStation.lng - tebourbaStation.lng) * progress;
+          const { lat, lng } = interpolateAlongWaypoints(routePoints, progress);
 
           activeBuses.push({
             busId: `bus-${bus.id}-out`,
@@ -281,8 +287,8 @@ export function getLiveTransitPositions(
             const progress = elapsed / BUS_ESTIMATED_TRANSIT_MINUTES;
             const minsToArr = arrTebourbaM - targetMinutes;
 
-            const lat = gobaaStation.lat + (tebourbaStation.lat - gobaaStation.lat) * progress;
-            const lng = gobaaStation.lng + (tebourbaStation.lng - gobaaStation.lng) * progress;
+            const returnPoints = [...routePoints].reverse();
+            const { lat, lng } = interpolateAlongWaypoints(returnPoints, progress);
 
             activeBuses.push({
               busId: `bus-${bus.id}-ret`,

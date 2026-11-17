@@ -1,10 +1,29 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { LINES, Station, TEBOURBA_BUS_STATION, TUNIS_CENTRAL_ID, formatMinutesToTime, parseTimeToMinutes, findStationById } from '../../data/rfrData';
+import {
+  LINES,
+  Station,
+  TEBOURBA_BUS_STATION,
+  TUNIS_CENTRAL_ID,
+  formatMinutesToTime,
+  findStationById
+} from '../../data/rfrData';
+import { ActiveBusRide, BUS_ROUTE_WAYPOINTS } from '../../data/busConnectionData';
 import { TRANSLATIONS, Language } from '../../data/translations';
-import { getLiveTransitPositions, LiveTrainPosition, LiveBusPosition, LiveTransitSnapshot } from '../../services/liveTrainTracker';
-import { announceTripStationVoice } from '../../utils/sound';
+import { GeoCoordinates } from '../../hooks/useGeolocation';
+import {
+  getLiveTransitPositions,
+  LiveTrainPosition,
+  LiveBusPosition,
+  LiveTransitSnapshot
+} from '../../services/liveTrainTracker';
+import {
+  calculateDistanceKm,
+  calculateRouteProgressAndEta,
+  formatDistance,
+  getAheadBusIntermediates
+} from '../../utils/geo';
 import {
   Play,
   Pause,
@@ -14,14 +33,11 @@ import {
   Bus,
   Clock,
   Gauge,
-  ArrowRight,
-  ArrowLeft,
-  Volume2,
-  MapPin,
-  ExternalLink,
-  ChevronRight,
-  Sparkles,
-  Info
+  ArrowLeftRight,
+  Radio,
+  Loader2,
+  CheckCircle2,
+  ExternalLink
 } from 'lucide-react';
 
 interface LiveTrainMapProps {
@@ -30,8 +46,13 @@ interface LiveTrainMapProps {
   currentDayOfWeek: number;
   isHoliday?: boolean;
   onSelectStation?: (lineId: string, stationId: string, role: 'from' | 'to') => void;
-  userCoords?: { lat: number; lng: number } | null;
+  userCoords?: GeoCoordinates | null;
   focusedTrainNumber?: string | null;
+  activeBusRide?: ActiveBusRide | null;
+  onUpdateBusRide?: (ride: ActiveBusRide | null) => void;
+  isWatchingGps?: boolean;
+  onStartGpsWatch?: () => void;
+  onStopGpsWatch?: () => void;
 }
 
 export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
@@ -41,15 +62,21 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
   isHoliday = false,
   onSelectStation,
   userCoords,
-  focusedTrainNumber
+  focusedTrainNumber,
+  activeBusRide,
+  onUpdateBusRide,
+  isWatchingGps = false,
+  onStartGpsWatch
 }) => {
   const t = TRANSLATIONS[lang];
 
-  // Map DOM container ref
+  // Map DOM container & layer refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const trainMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const busMarkersLayerRef = useRef<L.LayerGroup | null>(null);
+  const busCorridorLayerRef = useRef<L.LayerGroup | null>(null);
+  const liveBusRouteLayerRef = useRef<L.LayerGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
 
   // Time controller state
@@ -59,17 +86,36 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
   const [selectedTrain, setSelectedTrain] = useState<LiveTrainPosition | null>(null);
   const [selectedBus, setSelectedBus] = useState<LiveBusPosition | null>(null);
 
+  // Local fallback state for User-As-Bus mode (synced with activeBusRide)
+  const [localBusMode, setLocalBusMode] = useState<boolean>(Boolean(activeBusRide?.isUserOnBoard));
+  const [localBusDirection, setLocalBusDirection] = useState<'tebourba_to_gobaa' | 'gobaa_to_tebourba'>(
+    activeBusRide?.direction ?? 'tebourba_to_gobaa'
+  );
+  const [localBusLine, setLocalBusLine] = useState<'42' | '116'>(activeBusRide?.line ?? '42');
+
+  useEffect(() => {
+    if (activeBusRide) {
+      setLocalBusMode(activeBusRide.isUserOnBoard);
+      setLocalBusDirection(activeBusRide.direction);
+      setLocalBusLine(activeBusRide.line);
+    } else {
+      setLocalBusMode(false);
+    }
+  }, [activeBusRide]);
+
+  const isUserBusMode = activeBusRide ? activeBusRide.isUserOnBoard : localBusMode;
+  const busDirection = activeBusRide?.direction ?? localBusDirection;
+  const busLineLabel: '42' | '116' = activeBusRide?.line ?? localBusLine;
+
   // Effective time evaluated for live positions
   const effectiveMinutes = isLiveMode ? currentTunisiaMinutes : scrubbedMinutes;
 
-  // Sync live mode with prop updates
   useEffect(() => {
     if (isLiveMode) {
       setScrubbedMinutes(currentTunisiaMinutes);
     }
   }, [currentTunisiaMinutes, isLiveMode]);
 
-  // Compute live transit snapshot
   const snapshot: LiveTransitSnapshot = useMemo(() => {
     return getLiveTransitPositions(effectiveMinutes, currentDayOfWeek, isHoliday);
   }, [effectiveMinutes, currentDayOfWeek, isHoliday]);
@@ -82,7 +128,6 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
       setScrubbedMinutes((prev) => {
         setIsLiveMode(false);
         const next = prev + 1;
-        // Loop within operational hours (04:30 to 22:30 = 270 to 1350)
         return next > 1350 ? 270 : next;
       });
     }, 250);
@@ -90,12 +135,13 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
     return () => clearInterval(interval);
   }, [isPlaying]);
 
-  // If focusedTrainNumber is provided from outside, select it
+  // Focus on requested train
   useEffect(() => {
     if (focusedTrainNumber) {
-      const target = snapshot.activeTrains.find((t) => t.trainNumber === focusedTrainNumber);
+      const target = snapshot.activeTrains.find((tr) => tr.trainNumber === focusedTrainNumber);
       if (target) {
         setSelectedTrain(target);
+        setSelectedBus(null);
         if (mapInstanceRef.current) {
           mapInstanceRef.current.flyTo([target.currentLat, target.currentLng], 14, { duration: 1 });
         }
@@ -103,36 +149,115 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
     }
   }, [focusedTrainNumber, snapshot.activeTrains]);
 
+  // Stations for User-As-Bus routing
+  const gobaaStation = useMemo(() => findStationById('gobaa') || TEBOURBA_BUS_STATION, []);
+  const originStation = busDirection === 'tebourba_to_gobaa' ? TEBOURBA_BUS_STATION : gobaaStation;
+  const destStation = busDirection === 'tebourba_to_gobaa' ? gobaaStation : TEBOURBA_BUS_STATION;
+
+  const gpsProgress = useMemo(() => {
+    if (
+      !userCoords ||
+      typeof originStation.lat !== 'number' ||
+      typeof originStation.lng !== 'number' ||
+      typeof destStation.lat !== 'number' ||
+      typeof destStation.lng !== 'number'
+    ) {
+      return null;
+    }
+
+    return calculateRouteProgressAndEta(
+      userCoords.lat,
+      userCoords.lng,
+      originStation.lat,
+      originStation.lng,
+      destStation.lat,
+      destStation.lng,
+      userCoords.speed,
+      lang
+    );
+  }, [userCoords, originStation, destStation, lang]);
+
+  const expectedArrivalClock = useMemo(() => {
+    if (!gpsProgress) return formatMinutesToTime(currentTunisiaMinutes);
+    return formatMinutesToTime((currentTunisiaMinutes + gpsProgress.etaMinutes) % 1440);
+  }, [gpsProgress, currentTunisiaMinutes]);
+
+  const handleToggleUserBusMode = useCallback(() => {
+    if (!isUserBusMode) {
+      setSelectedTrain(null);
+      setSelectedBus(null);
+      setLocalBusMode(true);
+      onStartGpsWatch?.();
+      onUpdateBusRide?.({
+        busId: activeBusRide?.busId ?? 'user-live-bus',
+        line: busLineLabel,
+        direction: busDirection,
+        departureTime: activeBusRide?.departureTime ?? formatMinutesToTime(currentTunisiaMinutes),
+        isUserOnBoard: true
+      });
+      if (userCoords && mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo([userCoords.lat, userCoords.lng], 13, { duration: 0.8 });
+      }
+    } else {
+      setLocalBusMode(false);
+      onUpdateBusRide?.(null);
+    }
+  }, [
+    isUserBusMode,
+    activeBusRide,
+    busLineLabel,
+    busDirection,
+    currentTunisiaMinutes,
+    userCoords,
+    onStartGpsWatch,
+    onUpdateBusRide
+  ]);
+
+  const handleSwitchBusDestination = useCallback(() => {
+    const nextDir: 'tebourba_to_gobaa' | 'gobaa_to_tebourba' =
+      busDirection === 'tebourba_to_gobaa' ? 'gobaa_to_tebourba' : 'tebourba_to_gobaa';
+    setLocalBusDirection(nextDir);
+    onUpdateBusRide?.({
+      busId: activeBusRide?.busId ?? 'user-live-bus',
+      line: busLineLabel,
+      direction: nextDir,
+      departureTime: activeBusRide?.departureTime ?? formatMinutesToTime(currentTunisiaMinutes),
+      isUserOnBoard: true
+    });
+  }, [busDirection, activeBusRide, busLineLabel, currentTunisiaMinutes, onUpdateBusRide]);
+
+  const handleSwitchBusLine = useCallback(
+    (nextLine: '42' | '116') => {
+      setLocalBusLine(nextLine);
+      if (activeBusRide || isUserBusMode) {
+        onUpdateBusRide?.({
+          busId: activeBusRide?.busId ?? 'user-live-bus',
+          line: nextLine,
+          direction: busDirection,
+          departureTime: activeBusRide?.departureTime ?? formatMinutesToTime(currentTunisiaMinutes),
+          isUserOnBoard: isUserBusMode
+        });
+      }
+    },
+    [activeBusRide, isUserBusMode, busDirection, currentTunisiaMinutes, onUpdateBusRide]
+  );
+
   // Station coordinates for railway polyline
   const lineDStations = LINES.D.stations;
   const lineDPolylineCoords: [number, number][] = useMemo(() => {
     return lineDStations
-      .filter((s): s is Station & { lat: number; lng: number } => typeof s.lat === 'number' && typeof s.lng === 'number')
+      .filter(
+        (s): s is Station & { lat: number; lng: number } =>
+          typeof s.lat === 'number' && typeof s.lng === 'number'
+      )
       .map((s) => [s.lat, s.lng]);
   }, [lineDStations]);
-
-  // Feeder bus RN7 polyline coords (Gobaa -> Tebourba)
-  const busPolylineCoords: [number, number][] = useMemo(() => {
-    const gobaa = findStationById('gobaa');
-    const tebourba = TEBOURBA_BUS_STATION;
-    if (gobaa?.lat && gobaa?.lng && tebourba.lat && tebourba.lng) {
-      // Intermediate route checkpoints via Route Nationale 7 (RN7)
-      return [
-        [gobaa.lat, gobaa.lng],
-        [36.8285, 10.0050], // RN7 interchange near Jedaida
-        [36.8320, 9.9210],  // RN7 midpoint
-        [tebourba.lat, tebourba.lng]
-      ];
-    }
-    return [];
-  }, []);
 
   // Initialize Leaflet Map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Center on Line D corridor (between Tunis and Gobaa)
-    const initialCenter: [number, number] = [36.808, 10.120];
+    const initialCenter: [number, number] = [36.808, 10.12];
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
       zoom: 12,
@@ -142,23 +267,13 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
       attributionControl: false
     });
 
-    // Tile Layer: CartoDB Positron (High-contrast, elegant transit map, ultra-clean)
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       subdomains: 'abcd'
     }).addTo(map);
 
-    // Feeder Bus Track (dashed emerald)
-    if (busPolylineCoords.length > 0) {
-      L.polyline(busPolylineCoords, {
-        color: '#059669',
-        weight: 3.5,
-        dashArray: '6, 8',
-        opacity: 0.8
-      }).addTo(map);
-    }
+    busCorridorLayerRef.current = L.layerGroup().addTo(map);
 
-    // Line D Railway Casing (dark border for track realism)
     L.polyline(lineDPolylineCoords, {
       color: '#9a3412',
       weight: 6,
@@ -167,7 +282,6 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
       lineJoin: 'round'
     }).addTo(map);
 
-    // Line D Railway Main Track (vibrant orange with railroad style)
     L.polyline(lineDPolylineCoords, {
       color: '#ea580c',
       weight: 4,
@@ -232,7 +346,9 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
         iconAnchor: [12, 12]
       });
 
-      const tebourbaMarker = L.marker([TEBOURBA_BUS_STATION.lat, TEBOURBA_BUS_STATION.lng], { icon: busHubIcon }).addTo(map);
+      const tebourbaMarker = L.marker([TEBOURBA_BUS_STATION.lat, TEBOURBA_BUS_STATION.lng], {
+        icon: busHubIcon
+      }).addTo(map);
       tebourbaMarker.on('click', () => {
         if (onSelectStation) {
           onSelectStation('D', 'tebourba_bus', 'from');
@@ -240,7 +356,7 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
       });
     }
 
-    // Dynamic layer groups for real-time trains & buses
+    liveBusRouteLayerRef.current = L.layerGroup().addTo(map);
     trainMarkersLayerRef.current = L.layerGroup().addTo(map);
     busMarkersLayerRef.current = L.layerGroup().addTo(map);
 
@@ -252,33 +368,129 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
     };
   }, []);
 
-  // Update User GPS Marker
+  // Update User GPS Marker (as blue dot normally, or animated Bus Marker in isUserBusMode)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
     if (userCoords && typeof userCoords.lat === 'number' && typeof userCoords.lng === 'number') {
-      if (!userMarkerRef.current) {
-        const userIcon = L.divIcon({
-          className: 'custom-user-icon',
-          html: `
-            <div class="relative flex items-center justify-center" style="transform: translate(-50%, -50%);">
-              <span class="absolute w-6 h-6 rounded-full bg-blue-500/30 animate-ping"></span>
-              <span class="w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white shadow-md"></span>
-            </div>
-          `,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12]
-        });
+      const icon = isUserBusMode
+        ? L.divIcon({
+            className: 'custom-user-bus-icon',
+            html: `
+              <div class="relative flex flex-col items-center cursor-pointer" style="transform: translate(-50%, -50%);">
+                <div class="relative flex items-center justify-center">
+                  <span class="absolute -inset-2.5 rounded-full bg-emerald-500/45 animate-ping"></span>
+                  <div class="w-9 h-9 rounded-full bg-emerald-600 text-white border-2 border-white ring-4 ring-emerald-300 shadow-xl flex items-center justify-center text-sm font-black">
+                    🚌
+                  </div>
+                </div>
+                <div class="mt-1 bg-emerald-950 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow border border-emerald-400 whitespace-nowrap">
+                  ${t.myBusLocationLabel} ${busLineLabel}
+                </div>
+              </div>
+            `,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+          })
+        : L.divIcon({
+            className: 'custom-user-icon',
+            html: `
+              <div class="relative flex items-center justify-center" style="transform: translate(-50%, -50%);">
+                <span class="absolute w-6 h-6 rounded-full bg-blue-500/30 animate-ping"></span>
+                <span class="w-3.5 h-3.5 rounded-full bg-blue-600 border-2 border-white shadow-md"></span>
+              </div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
 
-        userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(mapInstanceRef.current);
+      if (!userMarkerRef.current) {
+        userMarkerRef.current = L.marker([userCoords.lat, userCoords.lng], {
+          icon,
+          zIndexOffset: 1050
+        }).addTo(mapInstanceRef.current);
       } else {
         userMarkerRef.current.setLatLng([userCoords.lat, userCoords.lng]);
+        userMarkerRef.current.setIcon(icon);
       }
     } else if (userMarkerRef.current) {
       userMarkerRef.current.remove();
       userMarkerRef.current = null;
     }
-  }, [userCoords]);
+  }, [userCoords, isUserBusMode, busLineLabel, t.myBusLocationLabel]);
+
+  // Render verified TRANSTU feeder bus corridor polyline & intermediate stops for Line 42 / 116
+  useEffect(() => {
+    if (!mapInstanceRef.current || !busCorridorLayerRef.current) return;
+
+    busCorridorLayerRef.current.clearLayers();
+    const waypoints = BUS_ROUTE_WAYPOINTS[busLineLabel];
+    const corridorCoords: [number, number][] = waypoints.map((p) => [p.lat, p.lng]);
+
+    L.polyline(corridorCoords, {
+      color: '#059669',
+      weight: 4,
+      dashArray: '6, 8',
+      opacity: isUserBusMode && userCoords ? 0.3 : 0.85,
+      lineJoin: 'round'
+    }).addTo(busCorridorLayerRef.current);
+
+    waypoints.slice(1, -1).forEach((stop) => {
+      const marker = L.circleMarker([stop.lat, stop.lng], {
+        radius: 4.5,
+        color: '#ffffff',
+        weight: 1.5,
+        fillColor: '#10b981',
+        fillOpacity: 0.95
+      });
+      marker.bindTooltip(lang === 'ar' ? stop.nameAr : stop.nameFr, {
+        direction: 'top',
+        offset: [0, -4]
+      });
+      marker.addTo(busCorridorLayerRef.current!);
+    });
+  }, [busLineLabel, isUserBusMode, userCoords, lang]);
+
+  // Update Live Bus Route Polyline from User GPS (= Bus) -> Destination Station along verified road stops
+  useEffect(() => {
+    if (!mapInstanceRef.current || !liveBusRouteLayerRef.current) return;
+
+    liveBusRouteLayerRef.current.clearLayers();
+
+    if (
+      isUserBusMode &&
+      userCoords &&
+      typeof destStation.lat === 'number' &&
+      typeof destStation.lng === 'number'
+    ) {
+      const ahead = getAheadBusIntermediates(
+        userCoords.lat,
+        userCoords.lng,
+        BUS_ROUTE_WAYPOINTS[busLineLabel],
+        busDirection
+      );
+      const coords: [number, number][] = [
+        [userCoords.lat, userCoords.lng],
+        ...ahead.map((p): [number, number] => [p.lat, p.lng]),
+        [destStation.lat, destStation.lng]
+      ];
+      L.polyline(coords, {
+        color: '#064e3b',
+        weight: 8,
+        opacity: 0.75,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(liveBusRouteLayerRef.current);
+
+      L.polyline(coords, {
+        color: '#10b981',
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(liveBusRouteLayerRef.current);
+    }
+  }, [isUserBusMode, userCoords, destStation, busLineLabel, busDirection]);
 
   // Update Live Train Markers on the Map
   useEffect(() => {
@@ -286,10 +498,16 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
 
     trainMarkersLayerRef.current.clearLayers();
 
-    // Render each active train
     snapshot.activeTrains.forEach((train) => {
       const isSelected = selectedTrain?.trainNumber === train.trainNumber;
-      const directionArrow = train.direction === 'outbound' ? (lang === 'ar' ? '⬅ تونس' : 'Tunis ➔') : (lang === 'ar' ? 'القباعة ➔' : 'Gobâa ➔');
+      const directionArrow =
+        train.direction === 'outbound'
+          ? lang === 'ar'
+            ? '⬅ تونس'
+            : 'Tunis ➔'
+          : lang === 'ar'
+          ? 'القباعة ➔'
+          : 'Gobâa ➔';
 
       const trainIcon = L.divIcon({
         className: 'custom-train-marker',
@@ -326,7 +544,6 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
       marker.addTo(trainMarkersLayerRef.current!);
     });
 
-    // If no trains are in transit, show the next upcoming train at its departure station
     if (snapshot.activeTrains.length === 0 && snapshot.nextUpcomingTrain) {
       const upcoming = snapshot.nextUpcomingTrain;
       const upcomingIcon = L.divIcon({
@@ -359,13 +576,21 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
     }
   }, [snapshot.activeTrains, snapshot.nextUpcomingTrain, selectedTrain, lang]);
 
+  // Suppress duplicate ghost buses going in the same direction when user's live GPS IS the bus
+  const displayedBuses = useMemo(() => {
+    if (isUserBusMode && userCoords) {
+      return snapshot.activeBuses.filter((b) => b.direction !== busDirection);
+    }
+    return snapshot.activeBuses;
+  }, [snapshot.activeBuses, isUserBusMode, userCoords, busDirection]);
+
   // Update Live Feeder Bus Markers on the Map
   useEffect(() => {
     if (!mapInstanceRef.current || !busMarkersLayerRef.current) return;
 
     busMarkersLayerRef.current.clearLayers();
 
-    snapshot.activeBuses.forEach((bus) => {
+    displayedBuses.forEach((bus) => {
       const isSelected = selectedBus?.busId === bus.busId;
       const busIcon = L.divIcon({
         className: 'custom-bus-marker',
@@ -380,7 +605,7 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               </div>
             </div>
             <div class="mt-0.5 bg-emerald-950 text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full shadow border border-emerald-700 whitespace-nowrap">
-              خط ${bus.line}
+              ${lang === 'ar' ? `خط ${bus.line}` : `Bus ${bus.line}`}
             </div>
           </div>
         `,
@@ -400,9 +625,8 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
 
       marker.addTo(busMarkersLayerRef.current!);
     });
-  }, [snapshot.activeBuses, selectedBus, lang]);
+  }, [displayedBuses, selectedBus, lang]);
 
-  // Time format helper for slider (from minutes 270..1350 to HH:MM)
   const formattedScrubbedTime = formatMinutesToTime(effectiveMinutes);
 
   return (
@@ -415,27 +639,32 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               🗺️
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base sm:text-lg font-black">{t.liveTrainMap}</h3>
+                <span className="bg-white/20 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-white/25">
+                  {t.offlineMapFallbackBadge}
+                </span>
                 {isLiveMode && (
                   <span className="flex items-center gap-1 bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs animate-pulse">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
                     {t.live}
                   </span>
                 )}
               </div>
               <p className="text-xs text-orange-100">
-                {lang === 'ar'
+                {isUserBusMode
+                  ? t.userAsBusActiveBadge
+                  : lang === 'ar'
                   ? 'مواقع القطارات وحافلات الترابط الحية محسوبة ومحاكاة بدقة حسب جدول المواعيد الرسمي'
                   : 'Positions réelles et simulées des trains et bus de rabattement selon la grille officielle'}
               </p>
             </div>
           </div>
 
-          {/* Live vs Simulation Reset Button */}
           <div className="flex items-center gap-2">
             {!isLiveMode && (
               <button
+                type="button"
                 onClick={() => {
                   setIsLiveMode(true);
                   setIsPlaying(false);
@@ -448,15 +677,49 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               </button>
             )}
 
-            <div className="px-3 py-1.5 rounded-xl bg-black/25 backdrop-blur-sm border border-white/15 text-white font-mono font-bold text-xs flex items-center gap-1.5" dir="ltr">
+            <div
+              className="px-3 py-1.5 rounded-xl bg-black/25 backdrop-blur-sm border border-white/15 text-white font-mono font-bold text-xs flex items-center gap-1.5"
+              dir="ltr"
+            >
               <Clock className="w-3.5 h-3.5 text-amber-300" />
               <span>{formattedScrubbedTime}</span>
             </div>
           </div>
         </div>
 
-        {/* Stats Badges */}
+        {/* Stats Badges & User-As-Bus Toggle */}
         <div className="flex items-center gap-2 flex-wrap pt-1 text-xs">
+          <button
+            type="button"
+            onClick={handleToggleUserBusMode}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-xs border transition-all active:scale-95 ${
+              isUserBusMode
+                ? 'bg-emerald-400 text-slate-950 border-white shadow-md ring-2 ring-emerald-200/70'
+                : 'bg-white/15 hover:bg-white/25 text-white border-white/25'
+            }`}
+          >
+            <Bus className="w-3.5 h-3.5" />
+            <span>{t.userAsBusModeBtn}</span>
+            {isUserBusMode && <Radio className="w-3 h-3 animate-pulse text-emerald-950" />}
+          </button>
+
+          <div className="flex items-center bg-black/20 p-0.5 rounded-xl border border-white/15">
+            {(['42', '116'] as const).map((ln) => (
+              <button
+                key={ln}
+                type="button"
+                onClick={() => handleSwitchBusLine(ln)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-colors ${
+                  busLineLabel === ln
+                    ? 'bg-emerald-400 text-slate-950 shadow-xs'
+                    : 'text-emerald-100 hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? `حافلة ${ln}` : `Bus ${ln}`}
+              </button>
+            ))}
+          </div>
+
           <div className="bg-white/15 backdrop-blur-sm px-3 py-1 rounded-xl flex items-center gap-1.5 font-bold">
             <Train className="w-3.5 h-3.5 text-amber-300" />
             <span>
@@ -466,10 +729,12 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
             </span>
           </div>
 
-          {snapshot.activeBuses.length > 0 && (
+          {displayedBuses.length > 0 && (
             <div className="bg-emerald-500/30 backdrop-blur-sm px-3 py-1 rounded-xl flex items-center gap-1.5 font-bold text-emerald-100 border border-emerald-400/30">
               <Bus className="w-3.5 h-3.5 text-emerald-300" />
-              <span>{snapshot.activeBuses.length} {t.busesInTransit}</span>
+              <span>
+                {displayedBuses.length} {t.busesInTransit}
+              </span>
             </div>
           )}
 
@@ -487,23 +752,278 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
           style={{ minHeight: '380px' }}
         />
 
-        {/* Floating Quick Legend in Map Corner */}
-        <div className="absolute top-3 right-3 rtl:right-3 rtl:left-auto ltr:left-auto ltr:right-3 z-10 bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-md border border-slate-200 text-[10px] space-y-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-1 bg-orange-600 rounded"></span>
-            <span className="font-bold text-slate-800">الخط D (تونس ⇄ القباعة)</span>
+        {/* Floating Quick Legend & Live User GPS HUD in Map Corner */}
+        <div className="absolute top-3 right-3 rtl:right-3 rtl:left-auto ltr:left-auto ltr:right-3 z-10 flex flex-col items-end gap-2">
+          <div className="bg-white/95 backdrop-blur-md p-2.5 rounded-2xl shadow-md border border-slate-200 text-[10px] space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-1 bg-orange-600 rounded" />
+              <span className="font-bold text-slate-800">الخط D (تونس ⇄ القباعة)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3 h-1 bg-emerald-500 rounded" />
+              <span className="font-semibold text-emerald-800">
+                {isUserBusMode
+                  ? lang === 'ar'
+                    ? `مسار الحافلة ${busLineLabel} الحي ➔ المحطة`
+                    : `Trajet Bus ${busLineLabel}`
+                  : lang === 'ar'
+                  ? busLineLabel === '42'
+                    ? 'خط 42 (طبربة ➔ البطان ➔ الجديدة ➔ القباعة)'
+                    : 'خط 116 (طبربة ➔ الذنيبة ➔ الجديدة ➔ القباعة)'
+                  : busLineLabel === '42'
+                  ? 'Ligne 42 (via El Battan ➔ Jedeida ➔ Gobâa)'
+                  : 'Ligne 116 (via Ed Dhehiba ➔ Jedeida ➔ Gobâa)'}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-0.5 border-t border-dashed border-emerald-600"></span>
-            <span className="font-semibold text-emerald-800">حافلات طبربة (42 و 116)</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-slate-500">
-            <span>🚆</span>
-            <span>انقر على أي قطار لمعرفة سرعته ومحطاته</span>
-          </div>
+
+          {userCoords &&
+            (() => {
+              const distLabel =
+                typeof destStation.lat === 'number' && typeof destStation.lng === 'number'
+                  ? formatDistance(
+                      calculateDistanceKm(userCoords.lat, userCoords.lng, destStation.lat, destStation.lng),
+                      lang
+                    )
+                  : null;
+              return (
+                <div className="flex items-center gap-1.5">
+                  {distLabel && (
+                    <div className="bg-slate-900/90 text-white backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-md border border-emerald-500/50 text-[10px] font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>
+                        {busDirection === 'tebourba_to_gobaa'
+                          ? lang === 'ar'
+                            ? `القباعة: ${distLabel}`
+                            : `Gobâa : ${distLabel}`
+                          : lang === 'ar'
+                          ? `طبربة: ${distLabel}`
+                          : `Tébourba : ${distLabel}`}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (mapInstanceRef.current) {
+                        mapInstanceRef.current.flyTo([userCoords.lat, userCoords.lng], 14, {
+                          duration: 0.8
+                        });
+                      }
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-2.5 py-1.5 rounded-xl shadow-md text-[10px] font-bold flex items-center gap-1 transition-all"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    <span>
+                      {isUserBusMode
+                        ? t.myBusLocationLabel
+                        : lang === 'ar'
+                        ? 'موقعي'
+                        : lang === 'fr'
+                        ? 'Ma position'
+                        : 'My location'}
+                    </span>
+                  </button>
+                </div>
+              );
+            })()}
         </div>
 
-        {/* Selected Train / Bus Detailed Floating HUD */}
+        {/* User-As-Bus Live On-Board Route Floating HUD */}
+        {isUserBusMode && !selectedTrain && !selectedBus && (
+          <div className="absolute bottom-3 left-3 right-3 sm:left-6 sm:right-6 z-20 bg-slate-950/95 text-white backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-2xl border border-emerald-500/50 space-y-2.5">
+            {!userCoords ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <Loader2 className="w-5 h-5 text-emerald-400 animate-spin shrink-0" />
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-white">
+                      {t.myBusLocationLabel} · {t.detectingLocation}
+                    </h4>
+                    <p className="text-[11px] text-emerald-200/80">{t.userAsBusActiveBadge}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {!isWatchingGps && (
+                    <button
+                      type="button"
+                      onClick={() => onStartGpsWatch?.()}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500 text-slate-950 font-black text-xs"
+                    >
+                      {t.startGpsTracking}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleToggleUserBusMode}
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold"
+                    aria-label="Close bus mode"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-base shadow-sm shrink-0">
+                      🚌
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-xs sm:text-sm font-black text-white">
+                          {busDirection === 'tebourba_to_gobaa'
+                            ? t.busRouteToGobaa
+                            : t.busRouteToTebourba}
+                        </h4>
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-400/40">
+                          {t.busLine} {busLineLabel}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-emerald-200/85 mt-0.5">
+                        {t.userAsBusActiveBadge}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleUserBusMode}
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs font-bold shrink-0"
+                    aria-label="Close bus mode"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {gpsProgress && (
+                  <>
+                    {gpsProgress.arrived && (
+                      <div className="bg-emerald-500 text-slate-950 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-xs font-black">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span>
+                          {busDirection === 'tebourba_to_gobaa'
+                            ? t.arrivedAtStationMsg
+                            : t.arrivedAtTebourbaMsg}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                        <span className="text-[9px] text-emerald-200/80 block">
+                          {t.remainingDistanceToStation}
+                        </span>
+                        <span className="text-sm font-black text-white font-mono">
+                          {gpsProgress.formattedDistanceToDest}
+                        </span>
+                      </div>
+
+                      <div className="bg-emerald-500/20 rounded-xl p-2 border border-emerald-400/35">
+                        <span className="text-[9px] text-emerald-200 block">
+                          {t.remainingTimeToStation}
+                        </span>
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-sm font-black text-emerald-300">
+                            {gpsProgress.formattedEta}
+                          </span>
+                          <span className="text-[10px] font-mono text-amber-300" dir="ltr">
+                            ({expectedArrivalClock})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white/10 rounded-xl p-2 border border-white/10">
+                        <span className="text-[9px] text-emerald-200/80 block">
+                          {t.currentSpeedLabel}
+                        </span>
+                        <span className="text-sm font-black text-white font-mono" dir="ltr">
+                          {gpsProgress.speedKmh} km/h
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 flex-wrap pt-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center bg-white/10 p-0.5 rounded-lg border border-white/15">
+                          {(['42', '116'] as const).map((ln) => (
+                            <button
+                              key={ln}
+                              type="button"
+                              onClick={() => handleSwitchBusLine(ln)}
+                              className={`px-2 py-0.5 rounded text-[10px] font-black transition-colors ${
+                                busLineLabel === ln
+                                  ? 'bg-emerald-400 text-slate-950'
+                                  : 'text-emerald-200 hover:text-white'
+                              }`}
+                            >
+                              {ln}
+                            </button>
+                          ))}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleSwitchBusDestination}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold border border-white/15"
+                        >
+                          <ArrowLeftRight className="w-3 h-3 text-emerald-300" />
+                          <span>{t.switchBusDestination}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (mapInstanceRef.current) {
+                              mapInstanceRef.current.flyTo([userCoords.lat, userCoords.lng], 14, {
+                                duration: 0.8
+                              });
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-black"
+                        >
+                          <Navigation className="w-3 h-3" />
+                          <span>{lang === 'ar' ? 'تركيز' : 'Center'}</span>
+                        </button>
+                      </div>
+
+                      {typeof destStation.lat === 'number' &&
+                        typeof destStation.lng === 'number' &&
+                        (() => {
+                          const ahead = getAheadBusIntermediates(
+                            userCoords.lat,
+                            userCoords.lng,
+                            BUS_ROUTE_WAYPOINTS[busLineLabel],
+                            busDirection
+                          );
+                          const waypointsParam =
+                            ahead.length > 0
+                              ? `&waypoints=${encodeURIComponent(
+                                  ahead.map((p) => `${p.lat},${p.lng}`).join('|')
+                                )}`
+                              : '';
+                          return (
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&origin=${userCoords.lat},${userCoords.lng}&destination=${destStation.lat},${destStation.lng}${waypointsParam}&travelmode=driving`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-200 text-[11px] font-semibold"
+                            >
+                              <span>{t.openInGoogleMaps}</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          );
+                        })()}
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Selected Train Detailed Floating HUD */}
         {selectedTrain && (
           <div className="absolute bottom-3 left-3 right-3 sm:left-6 sm:right-6 z-20 bg-white/95 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 shadow-xl border border-orange-200 space-y-2 animate-fadeIn">
             <div className="flex items-center justify-between gap-2">
@@ -514,10 +1034,14 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-black text-slate-900">
-                      {lang === 'ar' ? `قطار رقم ${selectedTrain.trainNumber}` : `Train n° ${selectedTrain.trainNumber}`}
+                      {lang === 'ar'
+                        ? `قطار رقم ${selectedTrain.trainNumber}`
+                        : `Train n° ${selectedTrain.trainNumber}`}
                     </h4>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">
-                      {selectedTrain.direction === 'outbound' ? '➔ تونس (برشلونة)' : '➔ القباعة المدينة'}
+                      {selectedTrain.direction === 'outbound'
+                        ? '➔ تونس (برشلونة)'
+                        : '➔ القباعة المدينة'}
                     </span>
                   </div>
                   <p className="text-xs font-semibold text-orange-700 mt-0.5">
@@ -534,6 +1058,7 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
                   </div>
                 )}
                 <button
+                  type="button"
                   onClick={() => setSelectedTrain(null)}
                   className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold"
                   aria-label="Close details"
@@ -543,11 +1068,20 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               </div>
             </div>
 
-            {/* Journey Segment Progress Bar */}
             <div className="space-y-1 pt-1">
               <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold">
-                <span>{lang === 'ar' ? selectedTrain.originStation.nameAr : selectedTrain.originStation.nameFr} ({selectedTrain.departureTime})</span>
-                <span>{lang === 'ar' ? selectedTrain.destinationStation.nameAr : selectedTrain.destinationStation.nameFr} ({selectedTrain.arrivalTime})</span>
+                <span>
+                  {lang === 'ar'
+                    ? selectedTrain.originStation.nameAr
+                    : selectedTrain.originStation.nameFr}{' '}
+                  ({selectedTrain.departureTime})
+                </span>
+                <span>
+                  {lang === 'ar'
+                    ? selectedTrain.destinationStation.nameAr
+                    : selectedTrain.destinationStation.nameFr}{' '}
+                  ({selectedTrain.arrivalTime})
+                </span>
               </div>
               <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden relative">
                 <div
@@ -570,7 +1104,9 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <h4 className="text-sm font-black text-slate-900">
-                      {lang === 'ar' ? `حافلة ترابط الخط ${selectedBus.line}` : `Bus Ligne ${selectedBus.line}`}
+                      {lang === 'ar'
+                        ? `حافلة ترابط الخط ${selectedBus.line}`
+                        : `Bus Ligne ${selectedBus.line}`}
                     </h4>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                       {selectedBus.direction === 'tebourba_to_gobaa' ? '➔ محطة القباعة' : '➔ طبربة'}
@@ -583,6 +1119,7 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               </div>
 
               <button
+                type="button"
                 onClick={() => setSelectedBus(null)}
                 className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold"
                 aria-label="Close details"
@@ -615,8 +1152,8 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Play / Pause Animation Button */}
             <button
+              type="button"
               onClick={() => {
                 setIsPlaying(!isPlaying);
                 if (isLiveMode) setIsLiveMode(false);
@@ -631,19 +1168,20 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
               <span>{isPlaying ? t.pauseSimulation : t.playSimulation}</span>
             </button>
 
-            {/* Time Display Badge */}
-            <span className="text-base font-black text-orange-700 font-mono tabular-nums px-2.5 py-1 rounded-xl bg-orange-50 border border-orange-200" dir="ltr">
+            <span
+              className="text-base font-black text-orange-700 font-mono tabular-nums px-2.5 py-1 rounded-xl bg-orange-50 border border-orange-200"
+              dir="ltr"
+            >
               {formattedScrubbedTime}
             </span>
           </div>
         </div>
 
-        {/* Time Scrubber Slider */}
         <div className="relative pt-1">
           <input
             type="range"
-            min={270} // 04:30
-            max={1350} // 22:30
+            min={270}
+            max={1350}
             step={1}
             value={effectiveMinutes}
             onChange={(e) => {
@@ -662,7 +1200,6 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
           </div>
         </div>
 
-        {/* Quick Active Trains Chips for this time */}
         {snapshot.activeTrains.length > 0 && (
           <div className="pt-1 flex items-center gap-2 overflow-x-auto no-scrollbar">
             <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap shrink-0">
@@ -671,11 +1208,14 @@ export const LiveTrainMap: React.FC<LiveTrainMapProps> = ({
             {snapshot.activeTrains.map((train) => (
               <button
                 key={train.trainNumber}
+                type="button"
                 onClick={() => {
                   setSelectedTrain(train);
                   setSelectedBus(null);
                   if (mapInstanceRef.current) {
-                    mapInstanceRef.current.flyTo([train.currentLat, train.currentLng], 14, { duration: 0.8 });
+                    mapInstanceRef.current.flyTo([train.currentLat, train.currentLng], 14, {
+                      duration: 0.8
+                    });
                   }
                 }}
                 className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 ${

@@ -6,10 +6,14 @@ import {
   formatMinutesLabel,
   calculateStationProximities,
   findNearestStation,
+  calculateRouteProgressAndEta,
+  getAheadBusIntermediates,
+  interpolateAlongWaypoints,
   WALKING_SPEED_KMH,
   DRIVING_SPEED_KMH
 } from '../utils/geo';
 import { LINES, TEBOURBA_BUS_STATION, TUNIS_CENTRAL_ID } from '../data/rfrData';
+import { BUS_ROUTE_WAYPOINTS } from '../data/busConnectionData';
 
 describe('Geo & Station Proximity Engine', () => {
   const stations = [...LINES.D.stations, TEBOURBA_BUS_STATION];
@@ -104,4 +108,177 @@ describe('Geo & Station Proximity Engine', () => {
       expect(proximities[i].isNearest).toBe(false);
     }
   });
+
+  describe('calculateRouteProgressAndEta', () => {
+    // Tebourba Bus Station -> Gobaa Station
+    const originLat = 36.8306;
+    const originLng = 9.8417;
+    const destLat = 36.8197;
+    const destLng = 10.0614;
+
+    it('calculates mid-route progress (~50%) and fallback speed ETA', () => {
+      const midLat = (originLat + destLat) / 2;
+      const midLng = (originLng + destLng) / 2;
+
+      const res = calculateRouteProgressAndEta(
+        midLat,
+        midLng,
+        originLat,
+        originLng,
+        destLat,
+        destLng,
+        null,
+        'ar'
+      );
+
+      expect(res.arrived).toBe(false);
+      expect(res.isLiveSpeed).toBe(false);
+      expect(res.speedKmh).toBe(DRIVING_SPEED_KMH);
+      expect(res.progressPercent).toBeGreaterThanOrEqual(45);
+      expect(res.progressPercent).toBeLessThanOrEqual(55);
+      expect(res.distanceToDestKm).toBeGreaterThan(8.5);
+      expect(res.distanceToDestKm).toBeLessThan(11.0);
+      expect(res.etaMinutes).toBeGreaterThanOrEqual(15);
+      expect(res.etaMinutes).toBeLessThanOrEqual(24);
+    });
+
+    it('uses live GPS speed when moving >= 1.5 m/s', () => {
+      const midLat = (originLat + destLat) / 2;
+      const midLng = (originLng + destLng) / 2;
+
+      // 15 m/s = 54 km/h
+      const resFast = calculateRouteProgressAndEta(
+        midLat,
+        midLng,
+        originLat,
+        originLng,
+        destLat,
+        destLng,
+        15,
+        'ar'
+      );
+
+      expect(resFast.isLiveSpeed).toBe(true);
+      expect(resFast.speedKmh).toBe(54);
+      // ~9.8 km at 54 km/h -> ~11 minutes
+      expect(resFast.etaMinutes).toBeGreaterThanOrEqual(9);
+      expect(resFast.etaMinutes).toBeLessThanOrEqual(13);
+
+      // Slow jitter (0.8 m/s < 1.5 m/s) should fall back to DRIVING_SPEED_KMH
+      const resSlowJitter = calculateRouteProgressAndEta(
+        midLat,
+        midLng,
+        originLat,
+        originLng,
+        destLat,
+        destLng,
+        0.8,
+        'fr'
+      );
+      expect(resSlowJitter.isLiveSpeed).toBe(false);
+      expect(resSlowJitter.speedKmh).toBe(DRIVING_SPEED_KMH);
+    });
+
+    it('marks arrived within 150m of destination station', () => {
+      const nearGobaaLat = 36.8199;
+      const nearGobaaLng = 10.0616;
+
+      const res = calculateRouteProgressAndEta(
+        nearGobaaLat,
+        nearGobaaLng,
+        originLat,
+        originLng,
+        destLat,
+        destLng,
+        10,
+        'ar'
+      );
+
+      expect(res.arrived).toBe(true);
+      expect(res.etaMinutes).toBe(0);
+      expect(res.progressPercent).toBe(100);
+      expect(res.formattedEta).toBe('وصلت المحطة!');
+    });
+  });
+
+  describe('Bus Corridor Waypoints & Forward Filtering', () => {
+    it('returns all 5 intermediate road stops when departing Tebourba for Line 42 and 116', () => {
+      const ahead42 = getAheadBusIntermediates(
+        36.8306,
+        9.8417,
+        BUS_ROUTE_WAYPOINTS['42'],
+        'tebourba_to_gobaa'
+      );
+      expect(ahead42.length).toBe(5);
+      expect(ahead42[0]).toEqual({ lat: 36.8037, lng: 9.8442 }); // El Battan
+
+      const ahead116 = getAheadBusIntermediates(
+        36.8306,
+        9.8417,
+        BUS_ROUTE_WAYPOINTS['116'],
+        'tebourba_to_gobaa'
+      );
+      expect(ahead116.length).toBe(5);
+      expect(ahead116[0]).toEqual({ lat: 36.8398, lng: 9.8516 }); // Ed Dhehiba
+    });
+
+    it('filters out already-passed stops and avoids U-turns near the next stop', () => {
+      // Mid-segment between Jedeida (36.8493, 9.9353) and Essaida (36.8276, 9.9698)
+      const aheadMid = getAheadBusIntermediates(
+        36.839,
+        9.952,
+        BUS_ROUTE_WAYPOINTS['42'],
+        'tebourba_to_gobaa'
+      );
+      expect(aheadMid.length).toBe(3); // Essaida, Carrefour Bejaoua, Oued Ellil
+      expect(aheadMid[0]).toEqual({ lat: 36.8276, lng: 9.9698 });
+
+      // Right next to Essaida (< 0.4km), should skip Essaida and aim at Carrefour Bejaoua next
+      const aheadNearEssaida = getAheadBusIntermediates(
+        36.8278,
+        9.9701,
+        BUS_ROUTE_WAYPOINTS['42'],
+        'tebourba_to_gobaa'
+      );
+      expect(aheadNearEssaida.length).toBe(2);
+      expect(aheadNearEssaida[0]).toEqual({ lat: 36.8361, lng: 10.0136 });
+    });
+
+    it('reverses corridor waypoints on gobaa_to_tebourba return trips', () => {
+      // At Carrefour Bejaoua heading back toward Tebourba
+      const aheadReturn = getAheadBusIntermediates(
+        36.834,
+        10.005,
+        BUS_ROUTE_WAYPOINTS['42'],
+        'gobaa_to_tebourba'
+      );
+      expect(aheadReturn.length).toBe(3); // Essaida -> Jedeida -> El Battan
+      expect(aheadReturn[0]).toEqual({ lat: 36.8276, lng: 9.9698 });
+      expect(aheadReturn[2]).toEqual({ lat: 36.8037, lng: 9.8442 });
+    });
+
+    it('returns empty intermediates when user is far outside the bus corridor (> 5 km)', () => {
+      // Tunis Barcelone central station (~12 km away)
+      const aheadOutside = getAheadBusIntermediates(
+        36.7949,
+        10.1805,
+        BUS_ROUTE_WAYPOINTS['42'],
+        'tebourba_to_gobaa'
+      );
+      expect(aheadOutside).toEqual([]);
+    });
+
+    it('interpolates along multi-segment waypoints preserving start, end, and northern road curve', () => {
+      const corridor = BUS_ROUTE_WAYPOINTS['42'];
+      expect(interpolateAlongWaypoints(corridor, 0)).toEqual(corridor[0]);
+      expect(interpolateAlongWaypoints(corridor, 1)).toEqual(corridor[corridor.length - 1]);
+
+      const mid = interpolateAlongWaypoints(corridor, 0.5);
+      // Should sit near the Jedeida - Essaida northern road arc rather than a southern shortcut
+      expect(mid.lat).toBeGreaterThan(36.825);
+      expect(mid.lng).toBeGreaterThan(9.9);
+      expect(mid.lng).toBeLessThan(9.99);
+    });
+  });
 });
+
